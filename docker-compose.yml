@@ -26,6 +26,7 @@ services:
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-TypstPad}
       MAX_PROJECTS_PER_USER: ${MAX_PROJECTS_PER_USER:-500}
       MAX_ASSET_MB_PER_USER: ${MAX_ASSET_MB_PER_USER:-1024}
+      COMPILE_MAX_MEMORY_MB: ${COMPILE_MAX_MEMORY_MB:-2048}
     volumes:
       - appdata:/data
     depends_on:

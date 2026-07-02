@@ -18,6 +18,7 @@ export default function AdminPage() {
         </div>
       </header>
       <main className="mx-auto max-w-3xl space-y-8 px-6 py-8">
+        <ServerStats />
         <ServerSettings />
         <Users />
       </main>
@@ -36,6 +37,59 @@ function Field({ label: l, children }: { label: string; children: React.ReactNod
       <span className={label}>{l}</span>
       <div className="mt-1">{children}</div>
     </label>
+  );
+}
+
+interface Stats {
+  users: number;
+  projects: number;
+  documents: number;
+  templates: number;
+  teams: number;
+  activeSessions: number;
+  diskBytes: number;
+}
+
+function humanBytes(n: number): string {
+  const u = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(i === 0 ? 0 : 1)} ${u[i]}`;
+}
+
+function ServerStats() {
+  const { data } = useQuery<Stats>({
+    queryKey: ["adminStats"],
+    queryFn: () => api.get("/api/admin/stats"),
+    refetchInterval: 30_000,
+  });
+  const tiles: [string, string][] = data
+    ? [
+        ["Users", String(data.users)],
+        ["Projects", String(data.projects)],
+        ["Documents", String(data.documents)],
+        ["Templates", String(data.templates)],
+        ["Teams", String(data.teams)],
+        ["Active sessions", String(data.activeSessions)],
+        ["Disk used", humanBytes(data.diskBytes)],
+      ]
+    : [];
+  return (
+    <section className={card}>
+      <h2 className="mb-4 text-base font-semibold text-gray-900 dark:text-gray-100">Server stats</h2>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map(([label, value]) => (
+          <div key={label} className="rounded-md border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50">
+            <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">{value}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
+          </div>
+        ))}
+        {!data && <p className="text-sm text-gray-400">Loading…</p>}
+      </div>
+    </section>
   );
 }
 

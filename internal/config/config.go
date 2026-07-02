@@ -21,7 +21,8 @@ type Config struct {
 	OIDCClientID    string
 	OIDCClientSecret string
 	OIDCScopes      string
-	CompileTimeout  int // seconds
+	CompileTimeout      int // seconds
+	CompileMaxMemoryMB  int // per-compile memory cap (0 = unlimited)
 
 	// Abuse quotas (0 = unlimited). Admins are always exempt.
 	MaxProjectsPerUser  int
@@ -59,7 +60,8 @@ func FromEnv() (*Config, error) {
 		OIDCClientID:    os.Getenv("OIDC_CLIENT_ID"),
 		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 		OIDCScopes:      getenv("OIDC_SCOPES", "openid profile email"),
-		CompileTimeout:  intenv("COMPILE_TIMEOUT_SECONDS", 30),
+		CompileTimeout:     intenv("COMPILE_TIMEOUT_SECONDS", 30),
+		CompileMaxMemoryMB: intenv("COMPILE_MAX_MEMORY_MB", 2048),
 		MaxProjectsPerUser:   intenv("MAX_PROJECTS_PER_USER", 500),
 		MaxAssetBytesPerUser: int64(intenv("MAX_ASSET_MB_PER_USER", 1024)) << 20,
 		SignupAllowlist: os.Getenv("SIGNUP_ALLOWLIST"),

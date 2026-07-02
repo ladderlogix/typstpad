@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -135,6 +137,35 @@ func (s *Server) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAdminGetSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.Settings.AdminView())
+}
+
+func (s *Server) handleAdminStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := s.Store.Stats(r.Context())
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"users":          stats.Users,
+		"projects":       stats.Projects,
+		"documents":      stats.Documents,
+		"templates":      stats.Templates,
+		"teams":          stats.Teams,
+		"activeSessions": stats.ActiveSessions,
+		"diskBytes":      dirSize(s.Cfg.DataDir),
+	})
+}
+
+// dirSize sums file sizes under a directory (best-effort).
+func dirSize(dir string) int64 {
+	var total int64
+	_ = filepath.Walk(dir, func(_ string, info os.FileInfo, err error) error {
+		if err == nil && info != nil && !info.IsDir() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
 }
 
 // handleAdminPutSettings updates any provided setting. Secret fields (SMTP

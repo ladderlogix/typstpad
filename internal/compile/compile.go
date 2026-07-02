@@ -18,12 +18,34 @@ import (
 )
 
 type Compiler struct {
-	TypstBin string
-	WorkDir  string // scratch space for compile jobs
-	FontDirs string // TYPST_FONT_PATHS value ("" = typst defaults)
-	CacheDir string // TYPST_PACKAGE_CACHE_PATH (Typst Universe cache)
-	Timeout  time.Duration
-	sem      chan struct{}
+	TypstBin    string
+	WorkDir     string // scratch space for compile jobs
+	FontDirs    string // TYPST_FONT_PATHS value ("" = typst defaults)
+	CacheDir    string // TYPST_PACKAGE_CACHE_PATH (Typst Universe cache)
+	Timeout     time.Duration
+	MaxMemoryMB int // per-compile virtual-memory cap (0 = unlimited)
+	sem         chan struct{}
+}
+
+// typstCmd builds the typst invocation, wrapping it with an address-space
+// (ulimit -v) cap when MaxMemoryMB > 0 so a pathological document can't OOM the
+// host. `exec "$@"` replaces the shell, so it stays a single process (the
+// context timeout/kill still applies directly).
+func (c *Compiler) typstCmd(ctx context.Context, args ...string) *exec.Cmd {
+	if c.MaxMemoryMB > 0 {
+		kb := strconv.Itoa(c.MaxMemoryMB * 1024)
+		shArgs := append([]string{"-c", "ulimit -v " + kb + " 2>/dev/null; exec \"$@\"", "sh", c.TypstBin}, args...)
+		return exec.CommandContext(ctx, "/bin/sh", shArgs...)
+	}
+	return exec.CommandContext(ctx, c.TypstBin, args...)
+}
+
+func (c *Compiler) compileEnv() []string {
+	env := append(os.Environ(), "TYPST_PACKAGE_CACHE_PATH="+c.CacheDir)
+	if c.FontDirs != "" {
+		env = append(env, "TYPST_FONT_PATHS="+c.FontDirs)
+	}
+	return env
 }
 
 func New(typstBin, workDir, cacheDir string, timeout time.Duration) (*Compiler, error) {
@@ -104,15 +126,12 @@ func (c *Compiler) Compile(ctx context.Context, mainPath string, files []JobFile
 	outPDF := filepath.Join(jobDir, "__out.pdf")
 	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, c.TypstBin, "compile",
+	cmd := c.typstCmd(ctx, "compile",
 		"--root", jobDir,
 		"--diagnostic-format", "short",
 		filepath.Join(jobDir, filepath.FromSlash(mainPath)),
 		outPDF)
-	cmd.Env = append(os.Environ(), "TYPST_PACKAGE_CACHE_PATH="+c.CacheDir)
-	if c.FontDirs != "" {
-		cmd.Env = append(cmd.Env, "TYPST_FONT_PATHS="+c.FontDirs)
-	}
+	cmd.Env = c.compileEnv()
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	cmd.WaitDelay = 2 * time.Second
@@ -177,13 +196,10 @@ func (c *Compiler) Thumbnail(ctx context.Context, mainPath string, files []JobFi
 	outPattern := filepath.Join(jobDir, "thumb{p}.png")
 	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, c.TypstBin, "compile",
+	cmd := c.typstCmd(ctx, "compile",
 		"--root", jobDir, "--ppi", strconv.Itoa(ppi),
 		filepath.Join(jobDir, filepath.FromSlash(mainPath)), outPattern)
-	cmd.Env = append(os.Environ(), "TYPST_PACKAGE_CACHE_PATH="+c.CacheDir)
-	if c.FontDirs != "" {
-		cmd.Env = append(cmd.Env, "TYPST_FONT_PATHS="+c.FontDirs)
-	}
+	cmd.Env = c.compileEnv()
 	cmd.WaitDelay = 2 * time.Second
 	if err := cmd.Run(); err != nil {
 		return nil, nil // compile failed; caller uses a placeholder

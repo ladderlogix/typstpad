@@ -137,6 +137,7 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.Delete("/admin/users/{userID}", s.handleAdminDeleteUser)
 			r.Get("/admin/settings", s.handleAdminGetSettings)
 			r.Put("/admin/settings", s.handleAdminPutSettings)
+			r.Get("/admin/stats", s.handleAdminStats)
 		})
 	})
 

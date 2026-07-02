@@ -74,6 +74,7 @@ func serveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			comp.MaxMemoryMB = cfg.CompileMaxMemoryMB
 
 			hub := api.NewHub()
 			snap := versions.NewSnapshotter(st, bl, cc, func(projectID, typ string) {
