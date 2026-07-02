@@ -134,6 +134,12 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.With(auth.RequireScope("write")).Delete("/members/{userID}", s.handleRemoveTeamMember)
 		})
 
+		// Notifications
+		r.Get("/notifications", s.handleListNotifications)
+		r.Get("/notifications/unread-count", s.handleUnreadCount)
+		r.Post("/notifications/read", s.handleMarkAllRead)
+		r.Post("/notifications/{id}/read", s.handleMarkRead)
+
 		// PATs (session-only: a PAT must not mint more PATs)
 		r.Get("/tokens", s.handleListTokens)
 		r.Post("/tokens", s.handleCreateToken)

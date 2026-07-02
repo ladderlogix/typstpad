@@ -345,6 +345,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 	}
 	encodeCommentAnchors(c)
 	s.Hub.Publish(p.ID, Event{Type: "comments.changed"})
+	s.notifyComment(r.Context(), u, p, req.Body)
 	writeJSON(w, http.StatusCreated, c)
 }
 

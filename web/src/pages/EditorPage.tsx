@@ -17,6 +17,7 @@ import { createSuggestMode, type SuggestModeController } from "../editor/suggest
 import FormatToolbar from "../editor/FormatToolbar";
 import { parseOutline, wordStats } from "../editor/format";
 import { ThemeToggle } from "../theme";
+import NotificationBell from "../NotificationBell";
 
 interface CollabSession {
   fileId: string;
@@ -490,6 +491,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
           >
             Export ZIP
           </a>
+          <NotificationBell />
           <ThemeToggle className="px-1 text-base" />
           <button
             onClick={exportPDF}

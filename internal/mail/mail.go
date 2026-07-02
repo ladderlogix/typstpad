@@ -62,6 +62,16 @@ func (m *Mailer) SendPasswordReset(toEmail, toName, link string) error {
 	return m.send(toEmail, subject, text, html)
 }
 
+// SendNotification emails a single feed event (a mention or a share).
+func (m *Mailer) SendNotification(toEmail, toName, subject, line, link string) error {
+	text := fmt.Sprintf("Hi %s,\n\n%s\n\n%s\n\nManage this in TypstPad.\n", toName, line, link)
+	html := fmt.Sprintf(
+		`<p>Hi %s,</p><p>%s</p><p><a href="%s">Open in TypstPad</a></p>`+
+			`<p style="color:#666;font-size:13px">Or paste this link: %s</p>`,
+		toName, line, link, link)
+	return m.send(toEmail, subject, text, html)
+}
+
 func (m *Mailer) send(to, subject, text, html string) error {
 	c := m.cfg
 	from := c.SMTPFrom()

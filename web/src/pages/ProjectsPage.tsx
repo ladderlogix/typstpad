@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Collection, type Project } from "../api/client";
 import { useMe } from "../App";
 import { ThemeToggle } from "../theme";
+import NotificationBell from "../NotificationBell";
 
 export default function ProjectsPage() {
   const me = useMe();
@@ -102,6 +103,7 @@ export default function ProjectsPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">TypstPad</h1>
           <div className="flex items-center gap-4 text-sm">
+            <NotificationBell />
             <ThemeToggle className="text-base" />
             <Link to="/templates" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100">
               Templates

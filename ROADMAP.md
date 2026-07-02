@@ -26,7 +26,9 @@ deployed through the pipeline, and verified.
       / disk usage in the admin panel
 
 ## P2 — Collaboration UX
-- [ ] Notifications: email on comment / @mention / project shared-with-you; in-app feed
+- [x] Notifications: in-app feed with a bell + unread badge (comment / @mention / project
+      shared-with-you); email via SES on @mention and share. @handles match by email,
+      email local-part, or name.
 - [ ] Real Typst language support via tinymist LSP (hover, completion, diagnostics)
 - [x] Editor niceties: formatting/symbol toolbar (bold/italic/headings/lists/link/math/
       figure/table/pagebreak), document outline panel (click-to-jump), live word/char count.

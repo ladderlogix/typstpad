@@ -155,6 +155,17 @@ export interface ShareLink {
   token?: string;
 }
 
+export interface Notification {
+  id: string;
+  type: "comment" | "mention" | "share";
+  actorName?: string;
+  projectId?: string;
+  projectName?: string;
+  summary: string;
+  readAt?: string;
+  createdAt: string;
+}
+
 export interface PublicShare {
   enabled: boolean;
   token?: string;
