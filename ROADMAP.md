@@ -6,7 +6,8 @@ deployed through the pipeline, and verified.
 ## P0 — Safety (do first)
 - [x] Password reset for local accounts (email link via SES)
 - [x] Self-service account settings (change display name, color, password)
-- [ ] Automated backups (nightly `pg_dump` + assets, stored off-box)
+- [x] Automated backups — nightly `pg_dump` + assets, 7-day rotation, systemd timer on the
+      box. TODO: off-box copy to Cloudflare R2 (needs an R2 access key on the box)
 - [x] Rate limiting (login / register / resend-verification / forgot-password / compile)
 - [x] Abuse quotas (per-user project count, per-user asset storage)
 
