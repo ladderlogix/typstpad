@@ -18,7 +18,10 @@ deployed through the pipeline, and verified.
       that runs them before the deploy hook proceeds
 - [x] Deeper deploy health check — deploy hook checks `/api/auth/config` (routing + settings
       + JSON), not just the DB ping, before considering the deploy healthy (else rolls back)
-- [ ] Observability: metrics, error tracking, uptime alerting
+- [x] Observability (metrics) — Prometheus + Grafana stack; app instrumented (HTTP
+      traffic/latency/errors, compile rate/duration, business gauges, Go runtime); provisioned
+      TypstPad dashboard. Grafana on localhost:3001 (SSH tunnel or a CF hostname).
+      TODO: error tracking (Sentry) + uptime alerting are still open.
 - [x] Admin server stats — users / projects / documents / templates / teams / active sessions
       / disk usage in the admin panel
 
