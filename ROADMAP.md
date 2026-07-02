@@ -4,8 +4,8 @@ Planned improvements, roughly in priority order. Check an item when it's built,
 deployed through the pipeline, and verified.
 
 ## P0 — Safety (do first)
-- [ ] Password reset for local accounts (email link via SES)
-- [ ] Self-service account settings (change display name, color, password)
+- [x] Password reset for local accounts (email link via SES)
+- [x] Self-service account settings (change display name, color, password)
 - [ ] Automated backups (nightly `pg_dump` + assets, stored off-box)
 - [ ] Rate limiting (login / register / resend-verification / forgot-password / compile)
 - [ ] Abuse quotas (per-user project count, per-user asset storage)
