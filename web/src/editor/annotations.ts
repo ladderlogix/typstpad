@@ -95,7 +95,8 @@ export function annotationsExtension(ydoc: Y.Doc, callbacks: AnnotationCallbacks
           const start = resolveAnchor(ydoc, sg.anchorStart);
           if (start === null) continue;
           const from = clamp(start);
-          if (sg.type === "insert") {
+          if (sg.type === "insert" && !sg.anchorEnd) {
+            // pending text (dialog/API suggestion): ghost widget at the point
             ranges.push({
               from,
               to: from,
@@ -104,6 +105,27 @@ export function annotationsExtension(ydoc: Y.Doc, callbacks: AnnotationCallbacks
                 side: 1,
               }),
             });
+            continue;
+          }
+          if (sg.type === "insert") {
+            // inline suggestion: the text is real, mark it as proposed
+            const end = resolveAnchor(ydoc, sg.anchorEnd);
+            if (end === null) continue;
+            const to = clamp(end);
+            if (to > from) {
+              ranges.push({
+                from,
+                to,
+                deco: Decoration.mark({
+                  class: "tp-suggest-insert",
+                  attributes: {
+                    "data-suggestion": sg.id,
+                    style: `--tp-author-color: ${sg.authorColor}`,
+                    title: "Proposed insertion — click to review",
+                  },
+                }),
+              });
+            }
             continue;
           }
           const end = resolveAnchor(ydoc, sg.anchorEnd);

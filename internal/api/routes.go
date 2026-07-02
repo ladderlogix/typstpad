@@ -64,6 +64,7 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 
 		r.With(auth.RequireScope("write")).Post("/suggestions/{suggestionID}/accept", s.handleResolveSuggestion("accepted"))
 		r.With(auth.RequireScope("write")).Post("/suggestions/{suggestionID}/reject", s.handleResolveSuggestion("rejected"))
+		r.With(auth.RequireScope("write")).Patch("/suggestions/{suggestionID}", s.handleUpdateSuggestion)
 
 		r.With(auth.RequireScope("write")).Patch("/comments/{commentID}", s.handleUpdateComment)
 		r.With(auth.RequireScope("write")).Delete("/comments/{commentID}", s.handleDeleteComment)
@@ -98,6 +99,8 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 	// so they authenticate via session cookie inside the handler.
 	r.Get("/assets/{fileID}", s.handleAssetBytes)
 
-	// Typst Universe package proxy for the in-browser compiler.
+	// Typst Universe package + font proxies for the in-browser compiler
+	// (disk-cached, so browsers never need direct internet access).
 	r.Get("/typst/packages/*", s.handlePackageProxy)
+	r.Get("/typst/fonts/{repo}/{file}", s.handleFontProxy)
 }

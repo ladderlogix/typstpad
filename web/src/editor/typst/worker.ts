@@ -40,8 +40,15 @@ function init(): Promise<void> {
     $typst.setCompilerInitOptions({
       getModule: () => compilerWasm,
       beforeBuild: [
-        // Fonts stream from the CDN once and stay cached by the browser.
-        preloadFontAssets({ assets: ["text", "cjk", "emoji"] }),
+        // Fonts come from our own server (disk-cached proxy) so browsers
+        // never need direct internet access.
+        preloadFontAssets({
+          assets: ["text", "cjk", "emoji"],
+          assetUrlPrefix: {
+            text: `${origin}/api/typst/fonts/typst-assets/`,
+            _: `${origin}/api/typst/fonts/typst-dev-assets/`,
+          },
+        }),
       ],
     });
     $typst.setRendererInitOptions({ getModule: () => rendererWasm });

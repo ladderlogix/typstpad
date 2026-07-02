@@ -7,18 +7,20 @@ import type { EditorView } from "@codemirror/view";
 import { api, roleAtLeast, type Comment, type FileEntry, type Project, type Suggestion } from "../api/client";
 import { useMe } from "../App";
 import CodeEditor from "../editor/CodeEditor";
-import PreviewPane from "../editor/PreviewPane";
+import PreviewPane, { type PreviewHandle } from "../editor/PreviewPane";
 import FileTree from "../editor/FileTree";
 import { SuggestionsPanel, CommentsPanel } from "../editor/panels";
 import { ShareDialog, HistoryDialog, SuggestDialog } from "../editor/dialogs";
 import { TypstClient, type WorkerDiagnostic } from "../editor/typst/compilerClient";
 import { resolveAnchor } from "../editor/annotations";
+import { createSuggestMode, type SuggestModeController } from "../editor/suggestMode";
 
 interface CollabSession {
   fileId: string;
   doc: Y.Doc;
   ytext: Y.Text;
   provider: HocuspocusProvider;
+  suggest: SuggestModeController;
 }
 
 interface PresenceUser {
@@ -132,14 +134,32 @@ export default function EditorPage({ projectId }: { projectId: string }) {
     };
     provider.awareness?.on("change", awarenessListener);
     awarenessListener();
-    setSession({ fileId: activeFile.id, doc, ytext: doc.getText("content"), provider });
+    const ytext = doc.getText("content");
+    const suggest = createSuggestMode({
+      ydoc: doc,
+      ytext,
+      fileId: activeFile.id,
+      onRecordsChanged: () =>
+        queryClient.invalidateQueries({ queryKey: ["suggestions", activeFile.id] }),
+    });
+    setSuggestModeOn(false);
+    setSession({ fileId: activeFile.id, doc, ytext, provider, suggest });
     return () => {
+      void suggest.flush();
       provider.awareness?.off("change", awarenessListener);
       provider.destroy();
       doc.destroy();
       setSession(null);
     };
   }, [activeFile?.id, activeFile?.kind, me.data?.id]);
+
+  const [suggestModeOn, setSuggestModeOn] = useState(false);
+  function toggleSuggestMode() {
+    if (!session) return;
+    const next = !suggestModeOn;
+    session.suggest.setEnabled(next);
+    setSuggestModeOn(next);
+  }
 
   // ---- compile pipeline ----
   const typstRef = useRef<TypstClient | null>(null);
@@ -234,6 +254,29 @@ export default function EditorPage({ projectId }: { projectId: string }) {
     session.ytext.observe(push);
     return () => session.ytext.unobserve(push);
   }, [session, synced, activeFile?.path, scheduleCompile]);
+
+  // ---- scroll sync (approximate: document-fraction based) ----
+  const previewRef = useRef<PreviewHandle>(null);
+  const [syncEnabled, setSyncEnabled] = useState(true);
+  const syncEnabledRef = useRef(syncEnabled);
+  syncEnabledRef.current = syncEnabled;
+  const syncThrottle = useRef<number | null>(null);
+
+  const handleCursorFraction = useCallback((fraction: number) => {
+    if (!syncEnabledRef.current || syncThrottle.current) return;
+    syncThrottle.current = window.setTimeout(() => {
+      syncThrottle.current = null;
+    }, 250);
+    previewRef.current?.scrollToFraction(fraction);
+  }, []);
+
+  const handleJumpToFraction = useCallback((fraction: number) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Math.round(fraction * (view.state.doc.lines - 1)) + 1)));
+    view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+    view.focus();
+  }, []);
 
   // ---- actions ----
   const viewRef = useRef<EditorView | null>(null);
@@ -362,6 +405,15 @@ export default function EditorPage({ projectId }: { projectId: string }) {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 text-sm">
+          {canEdit && activeFile?.kind === "text" && (
+            <ToolbarButton
+              onClick={toggleSuggestMode}
+              active={suggestModeOn}
+              title="Suggesting mode: your typing becomes tracked changes for review instead of direct edits"
+            >
+              {suggestModeOn ? "✓ Suggesting" : "Suggesting"}
+            </ToolbarButton>
+          )}
           {canSuggest && activeFile?.kind === "text" && (
             <ToolbarButton
               onClick={() => {
@@ -426,6 +478,8 @@ export default function EditorPage({ projectId }: { projectId: string }) {
                 onSelectComment: () => setSidePanel("comments"),
               }}
               onViewReady={(v) => (viewRef.current = v)}
+              onCursorFraction={handleCursorFraction}
+              extraExtensions={[session.suggest.extension]}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
@@ -476,7 +530,14 @@ export default function EditorPage({ projectId }: { projectId: string }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <PreviewPane svg={svg} compiling={compiling} />
+          <PreviewPane
+            ref={previewRef}
+            svg={svg}
+            compiling={compiling}
+            onJumpToFraction={handleJumpToFraction}
+            syncEnabled={syncEnabled}
+            onToggleSync={() => setSyncEnabled((s) => !s)}
+          />
         </div>
 
         {sidePanel && (

@@ -1,10 +1,8 @@
 package api
 
 import (
-	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -88,29 +86,12 @@ func (s *Server) handleExportPDF(w http.ResponseWriter, r *http.Request) {
 }
 
 // handlePackageProxy proxies Typst Universe package downloads for the
-// in-browser WASM compiler (avoids CORS and caches on the server).
-var packageHTTP = &http.Client{Timeout: 60 * time.Second}
-
+// in-browser WASM compiler (avoids CORS), disk-cached.
 func (s *Server) handlePackageProxy(w http.ResponseWriter, r *http.Request) {
 	rest := chi.URLParam(r, "*")
 	if strings.Contains(rest, "..") {
 		writeErr(w, http.StatusBadRequest, "invalid path")
 		return
 	}
-	upstream := "https://packages.typst.org/" + rest
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, upstream, nil)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	resp, err := packageHTTP.Do(req)
-	if err != nil {
-		writeErr(w, http.StatusBadGateway, "package registry unreachable")
-		return
-	}
-	defer resp.Body.Close()
-	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
+	s.cachedProxy(w, r, "https://packages.typst.org/"+rest, "package-cache", "")
 }

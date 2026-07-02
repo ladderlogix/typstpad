@@ -85,6 +85,21 @@ func (s *Store) ListSuggestions(ctx context.Context, fileID string, openOnly boo
 	return out, rows.Err()
 }
 
+// UpdateSuggestionAnchors re-anchors an open suggestion (inline suggest-mode
+// coalescing: extending a pending record as the author keeps typing/deleting).
+func (s *Store) UpdateSuggestionAnchors(ctx context.Context, id string, anchorStart, anchorEnd []byte, insertedText, deletedPreview *string) error {
+	tag, err := s.Pool.Exec(ctx, `
+		UPDATE suggestions SET anchor_start=$2, anchor_end=$3, inserted_text=$4, deleted_preview=$5
+		WHERE id=$1 AND status='open'`, id, anchorStart, anchorEnd, insertedText, deletedPreview)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // ResolveSuggestion flips an open suggestion to accepted/rejected; returns
 // ErrNotFound if it was not open (guards concurrent double-accepts).
 func (s *Store) ResolveSuggestion(ctx context.Context, id, status, resolvedBy string) error {

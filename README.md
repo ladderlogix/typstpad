@@ -7,13 +7,17 @@ A self-hosted collaborative [Typst](https://typst.app) document editor — "Over
 - **Real-time collaboration** — multiple editors on the same document with live cursors and
   presence (Yjs CRDT, merges never conflict)
 - **Live preview** — Typst compiled to WASM renders in your browser as you type; errors and
-  warnings shown with click-to-jump
+  warnings shown with click-to-jump; approximate scroll sync (preview follows your cursor,
+  double-click the preview to jump the editor); fonts and Typst Universe packages are served
+  and cached by your own server, so browsers need no internet access
 - **SSO** — generic OIDC (Keycloak, Authentik, Google, Azure AD, …) plus built-in
   email/password accounts; the first registered user becomes admin
 - **Version history** — automatic snapshots while you work, named versions, visual diffs and
   one-click restore (restores merge safely into live editing sessions)
-- **Suggestions mode** — propose tracked changes (insert/delete/replace); editors accept or
-  reject them; suggester role can *only* suggest, enforced server-side
+- **Suggestions mode** — editors toggle "Suggesting" and type directly: insertions appear as
+  underlined proposed text, deletions as strikethrough, coalesced into reviewable tracked
+  changes; a selection-based Suggest dialog covers the read-only suggester role (enforced
+  server-side)
 - **Comments** — threaded comments anchored to text ranges that follow the text as it moves
 - **Sharing** — invite by email with roles (owner / editor / suggester / viewer) or create
   share links

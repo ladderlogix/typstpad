@@ -29,9 +29,22 @@ interface Props {
   annotations: AnnotationData;
   callbacks: AnnotationCallbacks;
   onViewReady?: (view: EditorView) => void;
+  /** Reports cursor position as a fraction of the document (for scroll sync). */
+  onCursorFraction?: (fraction: number) => void;
+  extraExtensions?: import("@codemirror/state").Extension[];
 }
 
-export default function CodeEditor({ ydoc, ytext, awareness, readOnly, annotations, callbacks, onViewReady }: Props) {
+export default function CodeEditor({
+  ydoc,
+  ytext,
+  awareness,
+  readOnly,
+  annotations,
+  callbacks,
+  onViewReady,
+  onCursorFraction,
+  extraExtensions = [],
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
@@ -65,8 +78,16 @@ export default function CodeEditor({ ydoc, ytext, awareness, readOnly, annotatio
         ...typstLanguage(),
         yCollab(ytext, awareness, { undoManager }),
         annotationsExtension(ydoc, callbacks),
+        EditorView.updateListener.of((update) => {
+          if (onCursorFraction && (update.selectionSet || update.docChanged)) {
+            const head = update.state.selection.main.head;
+            const line = update.state.doc.lineAt(head).number;
+            onCursorFraction(update.state.doc.lines > 1 ? (line - 1) / (update.state.doc.lines - 1) : 0);
+          }
+        }),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
+        ...extraExtensions,
       ],
     });
     const view = new EditorView({ state, parent: containerRef.current });

@@ -139,15 +139,17 @@ func (c *Client) SetContent(ctx context.Context, docID, text string) error {
 	return c.do(ctx, http.MethodPut, "/docs/"+docID+"/content", map[string]string{"text": text}, nil)
 }
 
-// RelPos encodes absolute offsets into Yjs relative-position anchors (base64).
-func (c *Client) RelPos(ctx context.Context, docID string, from, to int) (anchorStart, anchorEnd string, err error) {
+// RelPos encodes absolute offsets into Yjs relative-position anchors (base64),
+// also returning the current text slice of the range.
+func (c *Client) RelPos(ctx context.Context, docID string, from, to int) (anchorStart, anchorEnd, slice string, err error) {
 	var out struct {
 		AnchorStart string `json:"anchorStart"`
 		AnchorEnd   string `json:"anchorEnd"`
+		Slice       string `json:"slice"`
 	}
 	err = c.do(ctx, http.MethodPost, "/docs/"+docID+"/relpos",
 		map[string]int{"from": from, "to": to}, &out)
-	return out.AnchorStart, out.AnchorEnd, err
+	return out.AnchorStart, out.AnchorEnd, out.Slice, err
 }
 
 // AbsPos decodes relative-position anchors to current absolute offsets

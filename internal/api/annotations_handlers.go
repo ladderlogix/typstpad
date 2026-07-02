@@ -50,6 +50,63 @@ func (s *Server) handleListSuggestions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, suggestions)
 }
 
+type suggestionAnchors struct {
+	start, end     []byte
+	insertedText   *string
+	deletedPreview *string
+}
+
+// computeSuggestionAnchors validates a suggestion range against the live doc
+// and produces the Yjs anchors + display texts.
+//
+// `inline` marks suggest-mode insertions whose text is ALREADY in the shared
+// document (typed live, rendered as a suggested range): those anchor a range
+// and accepting them is a no-op while rejecting deletes the range. Dialog/API
+// insertions anchor a point and hold the pending text in insertedText.
+func (s *Server) computeSuggestionAnchors(r *http.Request, fileID, typ string, from, to int, text string, inline bool) (*suggestionAnchors, error, int) {
+	if typ != "insert" && typ != "delete" && typ != "replace" {
+		return nil, fmt.Errorf("type must be insert, delete or replace"), http.StatusBadRequest
+	}
+	if from < 0 || to < from {
+		return nil, fmt.Errorf("invalid range"), http.StatusBadRequest
+	}
+	if typ == "insert" && !inline {
+		to = from
+	} else if typ != "insert" && to == from {
+		return nil, fmt.Errorf("delete/replace requires a non-empty range"), http.StatusBadRequest
+	}
+
+	startB64, endB64, slice, err := s.Collab.RelPos(r.Context(), fileID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("range beyond end of document"), http.StatusBadRequest
+	}
+
+	out := &suggestionAnchors{}
+	out.start, err = base64.StdEncoding.DecodeString(startB64)
+	if err != nil {
+		return nil, fmt.Errorf("bad anchor from sidecar: %w", err), http.StatusInternalServerError
+	}
+	needEnd := typ != "insert" || inline
+	if needEnd {
+		out.end, err = base64.StdEncoding.DecodeString(endB64)
+		if err != nil {
+			return nil, fmt.Errorf("bad anchor from sidecar: %w", err), http.StatusInternalServerError
+		}
+	}
+	switch {
+	case typ == "insert" && inline:
+		out.insertedText = &slice // the typed range, authoritative from the doc
+	case typ == "insert":
+		out.insertedText = &text
+	case typ == "delete":
+		out.deletedPreview = &slice
+	case typ == "replace":
+		out.insertedText = &text
+		out.deletedPreview = &slice
+	}
+	return out, nil, 0
+}
+
 // handleCreateSuggestion records a proposed change anchored to the live doc.
 // Suggesters (and editors in suggest mode, and AI tools) use this.
 func (s *Server) handleCreateSuggestion(w http.ResponseWriter, r *http.Request) {
@@ -59,68 +116,27 @@ func (s *Server) handleCreateSuggestion(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var req struct {
-		Type string `json:"type"` // insert | delete | replace
-		From int    `json:"from"`
-		To   int    `json:"to"`
-		Text string `json:"text"`
+		Type   string `json:"type"` // insert | delete | replace
+		From   int    `json:"from"`
+		To     int    `json:"to"`
+		Text   string `json:"text"`
+		Inline bool   `json:"inline"` // suggest-mode: text already typed into the doc
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if req.Type != "insert" && req.Type != "delete" && req.Type != "replace" {
-		writeErr(w, http.StatusBadRequest, "type must be insert, delete or replace")
+	// Inline insertions require write access to the doc (the text is already
+	// there); read-only suggesters can only use the pending-text form.
+	if req.Inline && !roleAtLeast(p.Role, "editor") {
+		writeErr(w, http.StatusForbidden, "inline suggestions require editor access")
 		return
 	}
-	if req.From < 0 || req.To < req.From {
-		writeErr(w, http.StatusBadRequest, "invalid range")
-		return
-	}
-	if req.Type == "insert" {
-		req.To = req.From
-	} else if req.To == req.From {
-		writeErr(w, http.StatusBadRequest, "delete/replace requires a non-empty range")
-		return
-	}
-
-	text, err := s.currentText(r.Context(), f.ID)
+	anchors, err, status := s.computeSuggestionAnchors(r, f.ID, req.Type, req.From, req.To, req.Text, req.Inline)
 	if err != nil {
-		fail(w, err)
+		writeErr(w, status, err.Error())
 		return
 	}
-	runes := []rune(text)
-	if req.To > len(runes) {
-		writeErr(w, http.StatusBadRequest, "range beyond end of document")
-		return
-	}
-	var insertedText, deletedPreview *string
-	if req.Type != "delete" {
-		insertedText = &req.Text
-	}
-	if req.Type != "insert" {
-		preview := string(runes[req.From:req.To])
-		deletedPreview = &preview
-	}
-
-	anchorStartB64, anchorEndB64, err := s.Collab.RelPos(r.Context(), f.ID, req.From, req.To)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	anchorStart, err := base64.StdEncoding.DecodeString(anchorStartB64)
-	if err != nil {
-		fail(w, fmt.Errorf("bad anchor from sidecar: %w", err))
-		return
-	}
-	var anchorEnd []byte
-	if req.Type != "insert" {
-		anchorEnd, err = base64.StdEncoding.DecodeString(anchorEndB64)
-		if err != nil {
-			fail(w, fmt.Errorf("bad anchor from sidecar: %w", err))
-			return
-		}
-	}
-
-	sg, err := s.Store.CreateSuggestion(r.Context(), p.ID, f.ID, u.ID, req.Type, anchorStart, anchorEnd, insertedText, deletedPreview)
+	sg, err := s.Store.CreateSuggestion(r.Context(), p.ID, f.ID, u.ID, req.Type, anchors.start, anchors.end, anchors.insertedText, anchors.deletedPreview)
 	if err != nil {
 		fail(w, err)
 		return
@@ -128,6 +144,54 @@ func (s *Server) handleCreateSuggestion(w http.ResponseWriter, r *http.Request) 
 	encodeAnchors(sg)
 	s.Hub.Publish(p.ID, Event{Type: "suggestions.changed", Payload: map[string]string{"fileId": f.ID}})
 	writeJSON(w, http.StatusCreated, sg)
+}
+
+// handleUpdateSuggestion re-anchors an open suggestion — inline suggest mode
+// coalesces a burst of typing/deleting into one growing record.
+func (s *Server) handleUpdateSuggestion(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFrom(r.Context())
+	sg, err := s.Store.SuggestionByID(r.Context(), chi.URLParam(r, "suggestionID"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if _, ok := s.projectAccess(w, r, sg.ProjectID, "suggester"); !ok {
+		return
+	}
+	if sg.AuthorID != u.ID {
+		writeErr(w, http.StatusForbidden, "can only update your own suggestions")
+		return
+	}
+	if sg.Status != "open" {
+		writeErr(w, http.StatusConflict, "suggestion already resolved")
+		return
+	}
+	var req struct {
+		From int    `json:"from"`
+		To   int    `json:"to"`
+		Text string `json:"text"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	inline := sg.Type == "insert" && sg.AnchorEnd != nil
+	anchors, err, status := s.computeSuggestionAnchors(r, sg.FileID, sg.Type, req.From, req.To, req.Text, inline)
+	if err != nil {
+		writeErr(w, status, err.Error())
+		return
+	}
+	if err := s.Store.UpdateSuggestionAnchors(r.Context(), sg.ID, anchors.start, anchors.end, anchors.insertedText, anchors.deletedPreview); err != nil {
+		fail(w, err)
+		return
+	}
+	updated, err := s.Store.SuggestionByID(r.Context(), sg.ID)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	encodeAnchors(updated)
+	s.Hub.Publish(sg.ProjectID, Event{Type: "suggestions.changed", Payload: map[string]string{"fileId": sg.FileID}})
+	writeJSON(w, http.StatusOK, updated)
 }
 
 // handleResolveSuggestion accepts or rejects a suggestion. Accepting applies
@@ -166,23 +230,33 @@ func (s *Server) handleResolveSuggestion(status string) http.HandlerFunc {
 			return
 		}
 
-		if status == "accepted" {
-			if err := s.applySuggestion(r, sg); err != nil {
-				// Roll the status back so the suggestion isn't lost.
-				_, _ = s.Store.Pool.Exec(r.Context(), `
-					UPDATE suggestions SET status='open', resolved_by=NULL, resolved_at=NULL
-					WHERE id=$1`, sg.ID)
-				fail(w, err)
-				return
-			}
+		// Inline insertions (suggest-mode typing) already live in the doc:
+		// accepting keeps them as-is, rejecting removes the range. Everything
+		// else applies its pending edit on accept only.
+		inline := sg.Type == "insert" && sg.AnchorEnd != nil
+		var applyErr error
+		if status == "accepted" && !inline {
+			applyErr = s.applySuggestion(r, sg, false)
+		} else if status == "rejected" && inline {
+			applyErr = s.applySuggestion(r, sg, true)
+		}
+		if applyErr != nil {
+			// Roll the status back so the suggestion isn't lost.
+			_, _ = s.Store.Pool.Exec(r.Context(), `
+				UPDATE suggestions SET status='open', resolved_by=NULL, resolved_at=NULL
+				WHERE id=$1`, sg.ID)
+			fail(w, applyErr)
+			return
 		}
 		s.Hub.Publish(p.ID, Event{Type: "suggestions.changed", Payload: map[string]string{"fileId": sg.FileID}})
 		writeJSON(w, http.StatusOK, map[string]string{"status": status})
 	}
 }
 
-// applySuggestion resolves the anchors to current offsets and applies the edit.
-func (s *Server) applySuggestion(r *http.Request, sg *store.Suggestion) error {
+// applySuggestion resolves the anchors to current offsets and applies the
+// edit. With deleteOnly it removes the anchored range (rejecting an inline
+// insertion) instead of applying the pending text.
+func (s *Server) applySuggestion(r *http.Request, sg *store.Suggestion, deleteOnly bool) error {
 	anchors := []string{base64.StdEncoding.EncodeToString(sg.AnchorStart)}
 	if sg.AnchorEnd != nil {
 		anchors = append(anchors, base64.StdEncoding.EncodeToString(sg.AnchorEnd))
@@ -200,7 +274,7 @@ func (s *Server) applySuggestion(r *http.Request, sg *store.Suggestion) error {
 		return fmt.Errorf("suggestion anchors no longer resolve (document changed too much)")
 	}
 	insert := ""
-	if sg.InsertedText != nil {
+	if !deleteOnly && sg.InsertedText != nil {
 		insert = *sg.InsertedText
 	}
 	return s.Collab.Edit(r.Context(), sg.FileID, collab.EditRequest{
@@ -256,7 +330,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, "invalid fileId")
 			return
 		}
-		sB64, eB64, err := s.Collab.RelPos(r.Context(), f.ID, *req.From, *req.To)
+		sB64, eB64, _, err := s.Collab.RelPos(r.Context(), f.ID, *req.From, *req.To)
 		if err != nil {
 			fail(w, err)
 			return
