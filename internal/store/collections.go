@@ -14,24 +14,36 @@ type Collection struct {
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"createdAt"`
 	Count     int       `json:"count"`
+	TeamID    *string   `json:"teamId,omitempty"`
+	TeamName  string    `json:"teamName,omitempty"`
+	CanManage bool      `json:"canManage"`
 }
 
-func (s *Store) CreateCollection(ctx context.Context, ownerID, name string) (*Collection, error) {
+func (s *Store) CreateCollection(ctx context.Context, ownerID, name string, teamID *string) (*Collection, error) {
 	var c Collection
 	err := s.Pool.QueryRow(ctx, `
-		INSERT INTO collections (owner_id, name) VALUES ($1,$2)
-		RETURNING id, owner_id, name, created_at`, ownerID, name).
-		Scan(&c.ID, &c.OwnerID, &c.Name, &c.CreatedAt)
+		INSERT INTO collections (owner_id, name, team_id) VALUES ($1,$2,NULLIF($3,'')::uuid)
+		RETURNING id, owner_id, name, created_at, team_id`, ownerID, name, ptrStr(teamID)).
+		Scan(&c.ID, &c.OwnerID, &c.Name, &c.CreatedAt, &c.TeamID)
+	c.CanManage = true
 	return &c, err
 }
 
-func (s *Store) ListCollections(ctx context.Context, ownerID string) ([]*Collection, error) {
+// ListCollections returns the user's personal collections plus every collection
+// belonging to a team they're a member of.
+func (s *Store) ListCollections(ctx context.Context, userID string) ([]*Collection, error) {
 	rows, err := s.Pool.Query(ctx, `
-		SELECT c.id, c.owner_id, c.name, c.created_at,
+		SELECT c.id, c.owner_id, c.name, c.created_at, c.team_id, COALESCE(t.name,''),
 			(SELECT count(*) FROM project_collections pc
 			 JOIN projects p ON p.id = pc.project_id
-			 WHERE pc.collection_id = c.id AND p.deleted_at IS NULL)
-		FROM collections c WHERE c.owner_id = $1 ORDER BY c.name`, ownerID)
+			 WHERE pc.collection_id = c.id AND p.deleted_at IS NULL),
+			(c.owner_id = $1 OR tm.role = 'admin') AS can_manage
+		FROM collections c
+		LEFT JOIN teams t ON t.id = c.team_id
+		LEFT JOIN team_members tm ON tm.team_id = c.team_id AND tm.user_id = $1
+		WHERE (c.team_id IS NULL AND c.owner_id = $1)
+		   OR (c.team_id IS NOT NULL AND tm.user_id IS NOT NULL)
+		ORDER BY c.team_id NULLS FIRST, c.name`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +51,7 @@ func (s *Store) ListCollections(ctx context.Context, ownerID string) ([]*Collect
 	var out []*Collection
 	for rows.Next() {
 		var c Collection
-		if err := rows.Scan(&c.ID, &c.OwnerID, &c.Name, &c.CreatedAt, &c.Count); err != nil {
+		if err := rows.Scan(&c.ID, &c.OwnerID, &c.Name, &c.CreatedAt, &c.TeamID, &c.TeamName, &c.Count, &c.CanManage); err != nil {
 			return nil, err
 		}
 		out = append(out, &c)
@@ -47,16 +59,30 @@ func (s *Store) ListCollections(ctx context.Context, ownerID string) ([]*Collect
 	return out, rows.Err()
 }
 
-// CollectionOwnedBy returns the collection only if owned by userID.
-func (s *Store) CollectionOwnedBy(ctx context.Context, id, ownerID string) (*Collection, error) {
+// CollectionForUser returns a collection the user can access (their own, or a
+// team's they belong to). CanManage is set for the personal owner or a team admin.
+func (s *Store) CollectionForUser(ctx context.Context, id, userID string) (*Collection, error) {
 	var c Collection
 	err := s.Pool.QueryRow(ctx, `
-		SELECT id, owner_id, name, created_at FROM collections WHERE id=$1 AND owner_id=$2`, id, ownerID).
-		Scan(&c.ID, &c.OwnerID, &c.Name, &c.CreatedAt)
+		SELECT c.id, c.owner_id, c.name, c.created_at, c.team_id,
+			(c.owner_id = $2 OR tm.role = 'admin') AS can_manage
+		FROM collections c
+		LEFT JOIN team_members tm ON tm.team_id = c.team_id AND tm.user_id = $2
+		WHERE c.id = $1
+		  AND ((c.team_id IS NULL AND c.owner_id = $2)
+		    OR (c.team_id IS NOT NULL AND tm.user_id IS NOT NULL))`, id, userID).
+		Scan(&c.ID, &c.OwnerID, &c.Name, &c.CreatedAt, &c.TeamID, &c.CanManage)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	return &c, err
+}
+
+func ptrStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 func (s *Store) RenameCollection(ctx context.Context, id, name string) error {
@@ -85,8 +111,10 @@ func (s *Store) RemoveProjectFromCollection(ctx context.Context, collectionID, p
 func (s *Store) CollectionIDsForProject(ctx context.Context, ownerID, projectID string) ([]string, error) {
 	rows, err := s.Pool.Query(ctx, `
 		SELECT pc.collection_id FROM project_collections pc
-		JOIN collections c ON c.id = pc.collection_id AND c.owner_id = $1
-		WHERE pc.project_id = $2`, ownerID, projectID)
+		JOIN collections c ON c.id = pc.collection_id
+		WHERE pc.project_id = $2
+		  AND ((c.team_id IS NULL AND c.owner_id = $1)
+		    OR c.team_id IN (SELECT team_id FROM team_members WHERE user_id = $1))`, ownerID, projectID)
 	if err != nil {
 		return nil, err
 	}

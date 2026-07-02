@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Collection, type Project } from "../api/client";
+import { api, type Collection, type Project, type Team } from "../api/client";
 import { useMe } from "../App";
 import { ThemeToggle } from "../theme";
 import NotificationBell from "../NotificationBell";
@@ -67,9 +67,14 @@ export default function ProjectsPage() {
     mutationFn: (id: string) => api.post<Project>(`/api/projects/${id}/duplicate`, {}),
     onSuccess: (p) => navigate(`/p/${p.id}`),
   });
+  const teams = useQuery<Team[]>({ queryKey: ["teams"], queryFn: () => api.get("/api/teams") });
+  const [showNewCollection, setShowNewCollection] = useState(false);
   const newCollection = useMutation({
-    mutationFn: (name: string) => api.post<Collection>("/api/collections", { name }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["collections"] }),
+    mutationFn: (v: { name: string; teamId: string }) => api.post<Collection>("/api/collections", v),
+    onSuccess: () => {
+      setShowNewCollection(false);
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+    },
   });
   const deleteCollection = useMutation({
     mutationFn: (id: string) => api.del(`/api/collections/${id}`),
@@ -149,24 +154,24 @@ export default function ProjectsPage() {
                     : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 }`}
               >
+                {c.teamName && <span title={`Shared with ${c.teamName}`}>👥 </span>}
                 {c.name} <span className="text-xs text-gray-400">{c.count}</span>
               </button>
-              <button
-                className="hidden px-1 text-xs text-gray-400 hover:text-red-600 group-hover:block"
-                title="Delete collection"
-                onClick={() => {
-                  if (confirm(`Delete collection "${c.name}"? (projects are not deleted)`)) deleteCollection.mutate(c.id);
-                }}
-              >
-                x
-              </button>
+              {c.canManage && (
+                <button
+                  className="hidden px-1 text-xs text-gray-400 hover:text-red-600 group-hover:block"
+                  title="Delete collection"
+                  onClick={() => {
+                    if (confirm(`Delete collection "${c.name}"? (projects are not deleted)`)) deleteCollection.mutate(c.id);
+                  }}
+                >
+                  x
+                </button>
+              )}
             </div>
           ))}
           <button
-            onClick={() => {
-              const name = prompt("New collection name:");
-              if (name) newCollection.mutate(name);
-            }}
+            onClick={() => setShowNewCollection(true)}
             className="mt-1 w-full rounded-md px-3 py-1.5 text-left text-sm text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             + New collection
@@ -298,9 +303,72 @@ export default function ProjectsPage() {
       {showNew && (
         <NewProjectDialog templates={templates.data ?? []} onClose={() => setShowNew(false)} />
       )}
+      {showNewCollection && (
+        <NewCollectionDialog
+          teams={teams.data ?? []}
+          pending={newCollection.isPending}
+          onCreate={(name, teamId) => newCollection.mutate({ name, teamId })}
+          onClose={() => setShowNewCollection(false)}
+        />
+      )}
       {projectMenu && (
         <OrganizeDialog project={projectMenu} collections={collections.data ?? []} onClose={() => setProjectMenu(null)} />
       )}
+    </div>
+  );
+}
+
+function NewCollectionDialog({
+  teams,
+  pending,
+  onCreate,
+  onClose,
+}: {
+  teams: Team[];
+  pending: boolean;
+  onCreate: (name: string, teamId: string) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [teamId, setTeamId] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">New collection</h2>
+        <input
+          autoFocus
+          placeholder="Collection name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && name.trim() && onCreate(name.trim(), teamId)}
+          className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
+        />
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Visibility</label>
+        <select
+          value={teamId}
+          onChange={(e) => setTeamId(e.target.value)}
+          className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
+        >
+          <option value="">Personal (only me)</option>
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              Team: {t.name}
+            </option>
+          ))}
+        </select>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
+            Cancel
+          </button>
+          <button
+            onClick={() => name.trim() && onCreate(name.trim(), teamId)}
+            disabled={pending || !name.trim()}
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            Create
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

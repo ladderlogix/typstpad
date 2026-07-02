@@ -123,8 +123,10 @@ func (s *Store) ListProjectsForUser(ctx context.Context, userID, query, collecti
 	if collectionID != "" {
 		args = append(args, collectionID)
 		sql += ` AND EXISTS (SELECT 1 FROM project_collections pc
-			JOIN collections c ON c.id = pc.collection_id AND c.owner_id = $1
-			WHERE pc.project_id = p.id AND pc.collection_id = $` + itoa(len(args)) + `)`
+			JOIN collections c ON c.id = pc.collection_id
+			WHERE pc.project_id = p.id AND pc.collection_id = $` + itoa(len(args)) + `
+			  AND ((c.team_id IS NULL AND c.owner_id = $1)
+			    OR c.team_id IN (SELECT team_id FROM team_members WHERE user_id = $1)))`
 	}
 	if favoritesOnly {
 		sql += ` AND fav.project_id IS NOT NULL`

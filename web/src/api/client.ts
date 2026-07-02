@@ -73,6 +73,9 @@ export interface Collection {
   name: string;
   createdAt: string;
   count: number;
+  teamId?: string;
+  teamName?: string;
+  canManage?: boolean;
 }
 
 export interface FileEntry {

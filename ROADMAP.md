@@ -40,7 +40,9 @@ deployed through the pipeline, and verified.
       with no account (rate-limited per IP; token retrievable so the URL stays copyable)
 
 ## P3 — Nice-to-haves
-- [ ] Team-scoped collections (shared groups)
+- [x] Team-scoped collections — a collection can belong to a team and is visible to all
+      its members (create with a team in the New-collection dialog); rename/delete limited
+      to the owner or a team admin
 - [ ] Per-file permissions
 - [x] Project favorites/starring (star on cards + Favorites filter); trash with restore
       (deletes go to a Trash view with restore / delete-forever; owner-only)
