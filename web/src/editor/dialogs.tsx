@@ -9,12 +9,12 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
       <div
-        className={`flex max-h-[85vh] w-full ${wide ? "max-w-4xl" : "max-w-lg"} flex-col rounded-xl bg-white shadow-xl`}
+        className={`flex max-h-[85vh] w-full ${wide ? "max-w-4xl" : "max-w-lg"} flex-col rounded-xl bg-white dark:bg-gray-900 shadow-xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-5 py-3">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:text-gray-300">
             ✕
           </button>
         </div>
@@ -100,7 +100,7 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
     <Modal title="Share project" onClose={onClose}>
       <div className="space-y-6 p-5">
         <section>
-          <h3 className="mb-2 text-sm font-medium text-gray-700">People</h3>
+          <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">People</h3>
           {isOwner && (
             <div className="mb-3 flex gap-2">
               <input
@@ -119,7 +119,7 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
             </div>
           )}
           {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
-          <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-md border border-gray-200 dark:border-gray-800">
             {members.data?.map((m) => (
               <li key={m.userId} className="flex items-center justify-between px-3 py-2 text-sm">
                 <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
                   >
                     {m.name[0]?.toUpperCase()}
                   </span>
-                  <span className="text-gray-900">{m.name}</span>
+                  <span className="text-gray-900 dark:text-gray-100">{m.name}</span>
                   <span className="text-xs text-gray-400">{m.email}</span>
                 </div>
                 {isOwner && m.role !== "owner" ? (
@@ -143,7 +143,7 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
                     </button>
                   </div>
                 ) : (
-                  <span className="text-xs text-gray-500">{m.role}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{m.role}</span>
                 )}
               </li>
             ))}
@@ -151,7 +151,7 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
         </section>
 
         <section>
-          <h3 className="mb-2 text-sm font-medium text-gray-700">Teams</h3>
+          <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Teams</h3>
           {isOwner && (
             <div className="mb-3 flex gap-2">
               <select
@@ -178,10 +178,10 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
               </button>
             </div>
           )}
-          <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-md border border-gray-200 dark:border-gray-800">
             {projectTeams.data?.map((pt) => (
               <li key={pt.teamId} className="flex items-center justify-between px-3 py-2 text-sm">
-                <span className="text-gray-900">
+                <span className="text-gray-900 dark:text-gray-100">
                   {pt.teamName} <span className="text-xs text-gray-400">· {pt.role}</span>
                 </span>
                 {isOwner && (
@@ -201,20 +201,20 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
 
         {isOwner && (
           <section>
-            <h3 className="mb-2 text-sm font-medium text-gray-700">Share links</h3>
+            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Share links</h3>
             <div className="mb-3 flex gap-2">
               <RoleSelect value={linkRole} onChange={setLinkRole} />
               <button
                 onClick={() => createLink.mutate()}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 Create link
               </button>
             </div>
-            <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-md border border-gray-200 dark:border-gray-800">
               {links.data?.map((l) => (
                 <li key={l.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                  <span className="text-gray-600">
+                  <span className="text-gray-600 dark:text-gray-400">
                     {l.role} link · created {new Date(l.createdAt).toLocaleDateString()}
                   </span>
                   <button className="text-xs text-red-500 hover:underline" onClick={() => revokeLink.mutate(l.id)}>
@@ -286,10 +286,10 @@ export function HistoryDialog({ projectId, canEdit, onClose }: { projectId: stri
   return (
     <Modal title="Version history" onClose={onClose} wide>
       <div className="flex h-[70vh]">
-        <div className="w-64 shrink-0 overflow-y-auto border-r border-gray-100">
+        <div className="w-64 shrink-0 overflow-y-auto border-r border-gray-100 dark:border-gray-800">
           {canEdit && (
             <button
-              className="m-3 w-[calc(100%-1.5rem)] rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              className="m-3 w-[calc(100%-1.5rem)] rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
               onClick={() => {
                 const name = prompt("Version name:");
                 if (name) createVersion.mutate(name);
@@ -307,7 +307,7 @@ export function HistoryDialog({ projectId, canEdit, onClose }: { projectId: stri
                     setDiffPath(null);
                   }}
                   className={`w-full px-4 py-2 text-left text-sm ${
-                    selected?.id === v.id ? "bg-indigo-50 text-indigo-700" : "text-gray-700 hover:bg-gray-50"
+                    selected?.id === v.id ? "bg-indigo-50 text-indigo-700" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
                   <span className="block font-medium">
@@ -329,7 +329,7 @@ export function HistoryDialog({ projectId, canEdit, onClose }: { projectId: stri
             <p className="p-8 text-center text-sm text-gray-400">Select a version to compare with the current state.</p>
           ) : (
             <>
-              <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2">
+              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 px-4 py-2">
                 <select
                   value={diffFile?.path ?? ""}
                   onChange={(e) => setDiffPath(e.target.value)}
@@ -436,7 +436,7 @@ export function SuggestDialog({
           </div>
         )}
         {!isInsert && (
-          <p className="max-h-24 overflow-y-auto rounded bg-gray-50 p-2 text-xs text-gray-600">{selectedText}</p>
+          <p className="max-h-24 overflow-y-auto rounded bg-gray-50 dark:bg-gray-900 p-2 text-xs text-gray-600 dark:text-gray-400">{selectedText}</p>
         )}
         {type !== "delete" && (
           <textarea
@@ -450,7 +450,7 @@ export function SuggestDialog({
         )}
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
             Cancel
           </button>
           <button

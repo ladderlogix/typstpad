@@ -31,20 +31,20 @@ export default function AdminPage() {
   });
 
   return (
-    <div className="min-h-full bg-gray-50">
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
+    <div className="min-h-full bg-gray-50 dark:bg-gray-950">
+      <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-4">
         <div className="mx-auto flex max-w-3xl items-center gap-4">
-          <Link to="/projects" className="text-sm text-gray-500 hover:text-gray-900">
+          <Link to="/projects" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100">
             ← Projects
           </Link>
-          <h1 className="text-lg font-semibold text-gray-900">Administration</h1>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Administration</h1>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl space-y-8 px-6 py-8">
         <section>
-          <h2 className="mb-3 text-base font-semibold text-gray-900">Registration</h2>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">Registration</h2>
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={settings.data?.allowRegistration ?? true}
@@ -55,8 +55,8 @@ export default function AdminPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-base font-semibold text-gray-900">Users</h2>
-          <ul className="divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
+          <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">Users</h2>
+          <ul className="divide-y divide-gray-200 dark:divide-gray-800 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
             {users.data?.map((u) => (
               <li key={u.id} className="flex items-center justify-between px-4 py-3 text-sm">
                 <div className="flex items-center gap-3">
@@ -67,7 +67,7 @@ export default function AdminPage() {
                     {u.name[0]?.toUpperCase()}
                   </span>
                   <div>
-                    <span className="font-medium text-gray-900">{u.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{u.name}</span>
                     <span className="ml-2 text-gray-400">{u.email}</span>
                     {u.isAdmin && (
                       <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-xs text-indigo-700">
@@ -79,7 +79,7 @@ export default function AdminPage() {
                 {u.id !== me.data?.id && (
                   <div className="flex gap-3 text-xs">
                     <button
-                      className="text-gray-500 hover:underline"
+                      className="text-gray-500 dark:text-gray-400 hover:underline"
                       onClick={() => setAdmin.mutate({ id: u.id, isAdmin: !u.isAdmin })}
                     >
                       {u.isAdmin ? "Remove admin" : "Make admin"}

@@ -14,6 +14,7 @@ import (
 	"typstpad/internal/collab"
 	"typstpad/internal/compile"
 	"typstpad/internal/config"
+	"typstpad/internal/mail"
 	mcpsrv "typstpad/internal/mcp"
 	"typstpad/internal/store"
 	"typstpad/internal/versions"
@@ -36,6 +37,7 @@ type Server struct {
 	Collab   *collab.Client
 	Compiler *compile.Compiler
 	Versions *versions.Snapshotter
+	Mailer   *mail.Mailer
 	SPA      fs.FS
 	// OnDocStored is invoked whenever the collab sidecar persists a doc;
 	// the snapshotter uses it to mark projects dirty.
@@ -68,6 +70,8 @@ func (s *Server) Router() http.Handler {
 			r.Get("/config", s.handleAuthConfig)
 			r.Get("/oidc/login", s.handleOIDCLogin)
 			r.Get("/oidc/callback", s.handleOIDCCallback)
+			r.Get("/verify-email", s.handleVerifyEmail)
+			r.Post("/resend-verification", s.handleResendVerification)
 		})
 		s.mountAuthedRoutes(r)
 

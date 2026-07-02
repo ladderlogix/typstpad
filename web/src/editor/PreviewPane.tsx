@@ -48,11 +48,11 @@ const PreviewPane = forwardRef<PreviewHandle, Props>(function PreviewPane(
   }
 
   return (
-    <div className="relative flex h-full flex-col bg-gray-100">
-      <div className="flex items-center justify-end gap-1 border-b border-gray-200 bg-white px-2 py-1 text-xs text-gray-500">
+    <div className="relative flex h-full flex-col bg-gray-100 dark:bg-gray-800">
+      <div className="flex items-center justify-end gap-1 border-b border-gray-200 bg-white px-2 py-1 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
         {compiling && <span className="mr-auto pl-1 text-gray-400">compiling…</span>}
         <button
-          className={`rounded px-2 py-0.5 ${syncEnabled ? "bg-indigo-100 text-indigo-700" : "hover:bg-gray-100"}`}
+          className={`rounded px-2 py-0.5 ${syncEnabled ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
           onClick={onToggleSync}
           title="Follow the editor cursor (approximate). Double-click the preview to jump the editor."
         >

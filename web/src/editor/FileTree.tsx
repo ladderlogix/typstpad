@@ -49,7 +49,7 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
 
   return (
     <div
-      className={`flex h-full flex-col border-r border-gray-200 bg-white ${dragOver ? "bg-indigo-50" : ""}`}
+      className={`flex h-full flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 ${dragOver ? "bg-indigo-50" : ""}`}
       onDragOver={(e) => {
         if (!canEdit) return;
         e.preventDefault();
@@ -63,13 +63,13 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
         if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
       }}
     >
-      <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
+      <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Files</span>
         {canEdit && (
           <div className="flex gap-1">
             <button
               title="New file"
-              className="rounded px-1.5 text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              className="rounded px-1.5 text-sm text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:text-gray-300"
               onClick={() => {
                 const path = prompt("New file path (e.g. chapter1.typ):");
                 if (path) createFile.mutate(path);
@@ -79,7 +79,7 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
             </button>
             <button
               title="Upload image/asset"
-              className="rounded px-1.5 text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              className="rounded px-1.5 text-sm text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:text-gray-300"
               onClick={() => inputRef.current?.click()}
             >
               ⬆
@@ -100,7 +100,7 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
             <button
               onClick={() => onSelect(f)}
               className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${
-                f.id === activeFileId ? "bg-indigo-50 font-medium text-indigo-700" : "text-gray-700 hover:bg-gray-50"
+                f.id === activeFileId ? "bg-indigo-50 font-medium text-indigo-700" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
               }`}
             >
               <span className="text-xs">{f.kind === "asset" ? "🖼" : "📄"}</span>
@@ -111,7 +111,7 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
                   {f.kind === "text" && (
                     <span
                       title="Rename"
-                      className="cursor-pointer text-xs text-gray-400 hover:text-gray-700"
+                      className="cursor-pointer text-xs text-gray-400 hover:text-gray-700 dark:text-gray-300"
                       onClick={(e) => {
                         e.stopPropagation();
                         const path = prompt("New path:", f.path);
@@ -138,7 +138,7 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
         ))}
       </ul>
       {canEdit && (
-        <p className="border-t border-gray-100 px-3 py-2 text-[11px] text-gray-400">
+        <p className="border-t border-gray-100 dark:border-gray-800 px-3 py-2 text-[11px] text-gray-400">
           Drag &amp; drop images to upload
         </p>
       )}

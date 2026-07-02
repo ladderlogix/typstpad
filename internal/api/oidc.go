@@ -157,6 +157,8 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 				fail(w, err)
 				return
 			}
+			// The identity provider already verified this email.
+			_ = s.Store.MarkEmailVerified(ctx, user.ID)
 			if user.IsAdmin && s.OnFirstUser != nil {
 				s.OnFirstUser()
 			}

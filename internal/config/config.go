@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -21,6 +22,22 @@ type Config struct {
 	OIDCClientSecret string
 	OIDCScopes      string
 	CompileTimeout  int // seconds
+
+	// SignupAllowlist restricts which emails may register (comma/space
+	// separated; each entry is a domain like "ics.red" or an exact address
+	// like "me@ics.red"). Empty allows any email.
+	SignupAllowlist string
+
+	// SMTP (e.g. Amazon SES SMTP): when configured, local signups must verify
+	// their email before they can log in.
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	SMTPFrom     string
+	SMTPFromName string
+	// RequireEmailVerification overrides the default (verify when SMTP set).
+	requireEmailVerification string
 }
 
 func FromEnv() (*Config, error) {
@@ -39,6 +56,14 @@ func FromEnv() (*Config, error) {
 		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 		OIDCScopes:      getenv("OIDC_SCOPES", "openid profile email"),
 		CompileTimeout:  intenv("COMPILE_TIMEOUT_SECONDS", 30),
+		SignupAllowlist: os.Getenv("SIGNUP_ALLOWLIST"),
+		SMTPHost:        os.Getenv("SMTP_HOST"),
+		SMTPPort:        intenv("SMTP_PORT", 587),
+		SMTPUsername:    os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:    os.Getenv("SMTP_PASSWORD"),
+		SMTPFrom:        os.Getenv("SMTP_FROM"),
+		SMTPFromName:    getenv("SMTP_FROM_NAME", "TypstPad"),
+		requireEmailVerification: os.Getenv("REQUIRE_EMAIL_VERIFICATION"),
 	}
 	if c.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
@@ -54,6 +79,50 @@ func FromEnv() (*Config, error) {
 
 func (c *Config) OIDCEnabled() bool {
 	return c.OIDCIssuer != "" && c.OIDCClientID != "" && c.OIDCClientSecret != ""
+}
+
+func (c *Config) SMTPEnabled() bool {
+	return c.SMTPHost != "" && c.SMTPFrom != ""
+}
+
+// EmailVerificationRequired reports whether local signups must verify their
+// email. Defaults to true when SMTP is configured; REQUIRE_EMAIL_VERIFICATION
+// (true/false) overrides.
+func (c *Config) EmailVerificationRequired() bool {
+	if c.requireEmailVerification != "" {
+		if b, err := strconv.ParseBool(c.requireEmailVerification); err == nil {
+			return b && c.SMTPEnabled()
+		}
+	}
+	return c.SMTPEnabled()
+}
+
+// EmailAllowed checks an email against SignupAllowlist (case-insensitive).
+// Empty allowlist permits everything.
+func (c *Config) EmailAllowed(email string) bool {
+	if strings.TrimSpace(c.SignupAllowlist) == "" {
+		return true
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	at := strings.LastIndex(email, "@")
+	if at < 0 {
+		return false
+	}
+	domain := email[at+1:]
+	for _, entry := range strings.FieldsFunc(c.SignupAllowlist, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' }) {
+		entry = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(entry, "@")))
+		if entry == "" {
+			continue
+		}
+		if strings.Contains(entry, "@") {
+			if entry == email {
+				return true
+			}
+		} else if entry == domain {
+			return true
+		}
+	}
+	return false
 }
 
 func getenv(k, def string) string {

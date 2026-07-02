@@ -65,7 +65,7 @@ func (s *Store) APITokenUser(ctx context.Context, tokenHash []byte) (*User, []st
 			)
 			SELECT `+userCols+`, tok.scopes FROM users JOIN tok ON users.id = tok.user_id`, tokenHash)
 		var u User
-		err := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.IsAdmin, &u.Color, &u.CreatedAt, &scopes)
+		err := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.IsAdmin, &u.Color, &u.EmailVerified, &u.CreatedAt, &scopes)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}

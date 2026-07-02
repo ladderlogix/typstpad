@@ -164,6 +164,8 @@ export interface Diagnostic {
 export interface AuthConfig {
   oidcEnabled: boolean;
   allowRegistration: boolean;
+  emailVerification: boolean;
+  signupAllowlist: string;
 }
 
 export function roleAtLeast(role: string | undefined, min: "viewer" | "suggester" | "editor" | "owner"): boolean {

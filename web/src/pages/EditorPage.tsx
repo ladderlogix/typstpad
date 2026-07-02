@@ -14,6 +14,7 @@ import { ShareDialog, HistoryDialog, SuggestDialog } from "../editor/dialogs";
 import { TypstClient, type WorkerDiagnostic } from "../editor/typst/compilerClient";
 import { resolveAnchor } from "../editor/annotations";
 import { createSuggestMode, type SuggestModeController } from "../editor/suggestMode";
+import { ThemeToggle } from "../theme";
 
 interface CollabSession {
   fileId: string;
@@ -366,7 +367,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
 
   if (project.isError) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-500">
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
         <p>Project not found or you don't have access.</p>
         <Link to="/projects" className="text-indigo-600 hover:underline">
           Back to projects
@@ -378,12 +379,12 @@ export default function EditorPage({ projectId }: { projectId: string }) {
   return (
     <div className="flex h-full flex-col">
       {/* top bar */}
-      <header className="flex items-center gap-3 border-b border-gray-200 bg-white px-3 py-2">
-        <Link to="/projects" className="text-sm text-gray-400 hover:text-gray-700" title="Back to projects">
+      <header className="flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2">
+        <Link to="/projects" className="text-sm text-gray-400 hover:text-gray-700 dark:text-gray-300" title="Back to projects">
           ←
         </Link>
         <h1
-          className="max-w-xs truncate text-sm font-semibold text-gray-900"
+          className="max-w-xs truncate text-sm font-semibold text-gray-900 dark:text-gray-100"
           title={project.data?.name}
           onDoubleClick={async () => {
             if (!canEdit) return;
@@ -396,7 +397,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
         >
           {project.data?.name ?? "…"}
         </h1>
-        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
+        <span className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
           {project.data?.role}
         </span>
 
@@ -460,6 +461,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
           </ToolbarButton>
           <ToolbarButton onClick={() => setShowHistory(true)}>History</ToolbarButton>
           <ToolbarButton onClick={() => setShowShare(true)}>Share</ToolbarButton>
+          <ThemeToggle className="px-1 text-base" />
           <button
             onClick={exportPDF}
             className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
@@ -482,7 +484,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col border-r border-gray-200">
+        <div className="flex min-w-0 flex-1 flex-col border-r border-gray-200 dark:border-gray-800">
           {session && synced && activeFile ? (
             <CodeEditor
               key={session.fileId}
@@ -507,9 +509,9 @@ export default function EditorPage({ projectId }: { projectId: string }) {
           )}
 
           {/* diagnostics */}
-          <div className="border-t border-gray-200 bg-white">
+          <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
             <button
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               onClick={() => setShowErrors(!showErrors)}
             >
               <span className={errorCount ? "font-medium text-red-600" : "text-green-600"}>
@@ -521,11 +523,11 @@ export default function EditorPage({ projectId }: { projectId: string }) {
               <span className="ml-auto">{showErrors ? "▾" : "▸"}</span>
             </button>
             {showErrors && diagnostics.length > 0 && (
-              <ul className="max-h-32 overflow-y-auto border-t border-gray-100 text-xs">
+              <ul className="max-h-32 overflow-y-auto border-t border-gray-100 dark:border-gray-800 text-xs">
                 {diagnostics.map((d, i) => (
                   <li key={i}>
                     <button
-                      className="flex w-full gap-2 px-3 py-1 text-left hover:bg-gray-50"
+                      className="flex w-full gap-2 px-3 py-1 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
                       onClick={() => jumpToDiagnostic(d)}
                     >
                       <span className={d.severity === "error" ? "text-red-600" : "text-amber-600"}>
@@ -534,14 +536,14 @@ export default function EditorPage({ projectId }: { projectId: string }) {
                       <span className="text-gray-400">
                         {d.file}:{d.line}:{d.col}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-gray-700">{d.message}</span>
+                      <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">{d.message}</span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
             {workerError && (
-              <p className="border-t border-gray-100 px-3 py-1 text-xs text-red-600">
+              <p className="border-t border-gray-100 dark:border-gray-800 px-3 py-1 text-xs text-red-600">
                 Preview engine failed: {workerError}
               </p>
             )}
@@ -560,8 +562,8 @@ export default function EditorPage({ projectId }: { projectId: string }) {
         </div>
 
         {sidePanel && (
-          <div className="flex w-80 shrink-0 flex-col border-l border-gray-200 bg-gray-50">
-            <div className="border-b border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700">
+          <div className="flex w-80 shrink-0 flex-col border-l border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+            <div className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               {sidePanel === "suggestions" ? "Suggestions" : "Comments"}
             </div>
             {sidePanel === "suggestions" ? (
@@ -617,7 +619,7 @@ function ToolbarButton({
       onClick={onClick}
       title={title}
       className={`rounded-md px-2.5 py-1.5 text-xs font-medium ${
-        active ? "bg-indigo-100 text-indigo-700" : "text-gray-600 hover:bg-gray-100"
+        active ? "bg-indigo-100 text-indigo-700" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
       }`}
     >
       {children}

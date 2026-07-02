@@ -25,13 +25,13 @@ export default function TeamsPage() {
   });
 
   return (
-    <div className="min-h-full bg-gray-50">
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
+    <div className="min-h-full bg-gray-50 dark:bg-gray-950">
+      <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-4">
         <div className="mx-auto flex max-w-4xl items-center gap-4">
-          <Link to="/projects" className="text-sm text-gray-500 hover:text-gray-900">
+          <Link to="/projects" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100">
             ← Projects
           </Link>
-          <h1 className="text-lg font-semibold text-gray-900">Teams</h1>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Teams</h1>
         </div>
       </header>
 
@@ -52,13 +52,13 @@ export default function TeamsPage() {
               +
             </button>
           </div>
-          <ul className="divide-y divide-gray-100 rounded-md border border-gray-200 bg-white">
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
             {teams.data?.map((t) => (
               <li key={t.id}>
                 <button
                   onClick={() => setSelected(t.id)}
                   className={`w-full px-3 py-2 text-left text-sm ${
-                    selected === t.id ? "bg-indigo-50 text-indigo-700" : "text-gray-700 hover:bg-gray-50"
+                    selected === t.id ? "bg-indigo-50 text-indigo-700" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
                   <span className="block font-medium">{t.name}</span>
@@ -143,10 +143,10 @@ function TeamDetail({ teamId, onDeleted }: { teamId: string; onDeleted: () => vo
   });
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
+    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2
-          className="text-base font-semibold text-gray-900"
+          className="text-base font-semibold text-gray-900 dark:text-gray-100"
           onDoubleClick={() => {
             if (!isAdmin) return;
             const name = prompt("Team name:", team.data?.name);
@@ -194,7 +194,7 @@ function TeamDetail({ teamId, onDeleted }: { teamId: string; onDeleted: () => vo
       )}
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
-      <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+      <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-md border border-gray-200 dark:border-gray-800">
         {members.data?.map((m) => (
           <li key={m.userId} className="flex items-center justify-between px-3 py-2 text-sm">
             <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ function TeamDetail({ teamId, onDeleted }: { teamId: string; onDeleted: () => vo
               >
                 {m.name[0]?.toUpperCase()}
               </span>
-              <span className="text-gray-900">{m.name}</span>
+              <span className="text-gray-900 dark:text-gray-100">{m.name}</span>
               <span className="text-xs text-gray-400">{m.email}</span>
             </div>
             {isAdmin ? (
@@ -222,7 +222,7 @@ function TeamDetail({ teamId, onDeleted }: { teamId: string; onDeleted: () => vo
                 </button>
               </div>
             ) : (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {m.role}
                 {m.userId === me.data?.id && (
                   <button

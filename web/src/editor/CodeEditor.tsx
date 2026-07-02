@@ -16,8 +16,10 @@ import { indentOnInput, bracketMatching, syntaxHighlighting, defaultHighlightSty
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
+import { oneDark } from "@codemirror/theme-one-dark";
 import * as Y from "yjs";
 import type { Awareness } from "y-protocols/awareness";
+import { useTheme } from "../theme";
 import { typstLanguage } from "./language";
 import { annotationsExtension, setAnnotations, type AnnotationData, type AnnotationCallbacks } from "./annotations";
 
@@ -61,6 +63,8 @@ export default function CodeEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const spellcheckCompartment = useRef(new Compartment());
+  const themeCompartment = useRef(new Compartment());
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -100,6 +104,7 @@ export default function CodeEditor({
           }
         }),
         spellcheckCompartment.current.of(spellcheckAttrs(spellcheck)),
+        themeCompartment.current.of(theme === "dark" ? oneDark : []),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
         ...extraExtensions,
@@ -124,6 +129,12 @@ export default function CodeEditor({
       effects: spellcheckCompartment.current.reconfigure(spellcheckAttrs(spellcheck)),
     });
   }, [spellcheck]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: themeCompartment.current.reconfigure(theme === "dark" ? oneDark : []),
+    });
+  }, [theme]);
 
   return <div ref={containerRef} className="h-full overflow-hidden" />;
 }

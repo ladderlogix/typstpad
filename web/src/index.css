@@ -1,7 +1,30 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: toggling `.dark` on <html> activates dark: variants. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 html, body, #root {
   height: 100%;
+}
+
+/* Base surface colors so any un-themed area still reads well in dark mode. */
+body {
+  @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+}
+
+/* Dark styling for all native form controls in one place (avoids per-input
+   classes); color-scheme fixes checkboxes and native select popups. */
+.dark {
+  color-scheme: dark;
+}
+.dark input,
+.dark select,
+.dark textarea {
+  @apply border-gray-700 bg-gray-800 text-gray-100;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  @apply text-gray-500;
 }
 
 /* CodeMirror fills its pane */
@@ -42,4 +65,12 @@ html, body, #root {
   width: 100%;
   height: auto;
   display: block;
+}
+
+/* Suggestion delete + comment tints need a touch more contrast on dark. */
+.dark .tp-suggest-delete {
+  background: color-mix(in srgb, #dc2626 28%, transparent);
+}
+.dark .tp-comment-range {
+  background: color-mix(in srgb, #eab308 32%, transparent);
 }

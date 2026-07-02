@@ -11,20 +11,21 @@ import (
 var ErrNotFound = errors.New("not found")
 
 type User struct {
-	ID           string     `json:"id"`
-	Email        string     `json:"email"`
-	Name         string     `json:"name"`
-	PasswordHash *string    `json:"-"`
-	IsAdmin      bool       `json:"isAdmin"`
-	Color        string     `json:"color"`
-	CreatedAt    time.Time  `json:"createdAt"`
+	ID            string    `json:"id"`
+	Email         string    `json:"email"`
+	Name          string    `json:"name"`
+	PasswordHash  *string   `json:"-"`
+	IsAdmin       bool      `json:"isAdmin"`
+	Color         string    `json:"color"`
+	EmailVerified bool      `json:"emailVerified"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
-const userCols = `id, email, name, password_hash, is_admin, color, created_at`
+const userCols = `id, email, name, password_hash, is_admin, color, email_verified, created_at`
 
 func scanUser(row pgx.Row) (*User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.IsAdmin, &u.Color, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.IsAdmin, &u.Color, &u.EmailVerified, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -101,6 +102,37 @@ func (s *Store) LinkOIDC(ctx context.Context, userID, issuer, subject string) er
 		INSERT INTO oidc_identities (user_id, issuer, subject) VALUES ($1,$2,$3)
 		ON CONFLICT (issuer, subject) DO NOTHING`, userID, issuer, subject)
 	return err
+}
+
+// Email verification
+
+func (s *Store) MarkEmailVerified(ctx context.Context, userID string) error {
+	_, err := s.Pool.Exec(ctx, `UPDATE users SET email_verified = true WHERE id = $1`, userID)
+	return err
+}
+
+func (s *Store) CreateEmailVerification(ctx context.Context, tokenHash []byte, userID string, expiresAt time.Time) error {
+	// One active token per user is enough; clear old ones first.
+	if _, err := s.Pool.Exec(ctx, `DELETE FROM email_verifications WHERE user_id = $1`, userID); err != nil {
+		return err
+	}
+	_, err := s.Pool.Exec(ctx, `
+		INSERT INTO email_verifications (token_hash, user_id, expires_at) VALUES ($1,$2,$3)`,
+		tokenHash, userID, expiresAt)
+	return err
+}
+
+// ConsumeEmailVerification validates and deletes a token, returning its user.
+func (s *Store) ConsumeEmailVerification(ctx context.Context, tokenHash []byte) (string, error) {
+	var userID string
+	err := s.Pool.QueryRow(ctx, `
+		DELETE FROM email_verifications
+		WHERE token_hash = $1 AND expires_at > now()
+		RETURNING user_id`, tokenHash).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return userID, err
 }
 
 // Sessions

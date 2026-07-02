@@ -2,8 +2,10 @@ package api
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"typstpad/internal/auth"
 	"typstpad/internal/store"
@@ -26,7 +28,24 @@ func (s *Server) handleAuthConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"oidcEnabled":       s.Cfg.OIDCEnabled(),
 		"allowRegistration": s.Store.SettingBool(r.Context(), "allow_registration", true),
+		"emailVerification": s.Cfg.EmailVerificationRequired(),
+		"signupAllowlist":   s.Cfg.SignupAllowlist,
 	})
+}
+
+const emailVerificationTTL = 24 * time.Hour
+
+// sendVerification generates a token and emails a verification link.
+func (s *Server) sendVerification(r *http.Request, user *store.User) error {
+	token, hash, err := auth.NewToken("")
+	if err != nil {
+		return err
+	}
+	if err := s.Store.CreateEmailVerification(r.Context(), hash, user.ID, time.Now().Add(emailVerificationTTL)); err != nil {
+		return err
+	}
+	link := strings.TrimRight(s.Cfg.PublicURL, "/") + "/api/auth/verify-email?token=" + token
+	return s.Mailer.SendVerification(user.Email, user.Name, link)
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +68,10 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(req.Password) < 8 {
 		writeErr(w, http.StatusBadRequest, "password must be at least 8 characters")
+		return
+	}
+	if !s.Cfg.EmailAllowed(req.Email) {
+		writeErr(w, http.StatusForbidden, "this email address is not permitted to sign up here")
 		return
 	}
 	// Registration can be disabled by an admin, but the very first user (the
@@ -76,14 +99,66 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
+	if user.IsAdmin && s.OnFirstUser != nil {
+		s.OnFirstUser()
+	}
+
+	// When email verification is on, don't log the user in — send a link and
+	// tell the client to prompt for verification.
+	if s.Cfg.EmailVerificationRequired() {
+		if err := s.sendVerification(r, user); err != nil {
+			slog.Error("send verification email failed", "err", err)
+			writeErr(w, http.StatusBadGateway, "could not send verification email; contact the administrator")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"emailVerificationRequired": true,
+			"email":                     user.Email,
+		})
+		return
+	}
+
 	if err := s.Auth.SetSessionCookie(w, r, user.ID); err != nil {
 		fail(w, err)
 		return
 	}
-	if user.IsAdmin && s.OnFirstUser != nil {
-		s.OnFirstUser()
-	}
 	writeJSON(w, http.StatusCreated, user)
+}
+
+func (s *Server) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Redirect(w, r, "/login?verify=invalid", http.StatusFound)
+		return
+	}
+	userID, err := s.Store.ConsumeEmailVerification(r.Context(), auth.HashToken(token))
+	if err != nil {
+		http.Redirect(w, r, "/login?verify=invalid", http.StatusFound)
+		return
+	}
+	if err := s.Store.MarkEmailVerified(r.Context(), userID); err != nil {
+		fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/login?verify=success", http.StatusFound)
+}
+
+func (s *Server) handleResendVerification(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	// Always return ok so this doesn't reveal which emails are registered.
+	if s.Cfg.EmailVerificationRequired() {
+		if user, err := s.Store.UserByEmail(r.Context(), strings.TrimSpace(strings.ToLower(req.Email))); err == nil && !user.EmailVerified {
+			if err := s.sendVerification(r, user); err != nil {
+				slog.Error("resend verification failed", "err", err)
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +180,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if user.PasswordHash == nil || !auth.VerifyPassword(req.Password, *user.PasswordHash) {
 		writeErr(w, http.StatusUnauthorized, "invalid email or password")
+		return
+	}
+	if s.Cfg.EmailVerificationRequired() && !user.EmailVerified {
+		writeJSON(w, http.StatusForbidden, map[string]any{
+			"error":              "please verify your email before signing in",
+			"needsVerification":  true,
+			"email":              user.Email,
+		})
 		return
 	}
 	if err := s.Auth.SetSessionCookie(w, r, user.ID); err != nil {

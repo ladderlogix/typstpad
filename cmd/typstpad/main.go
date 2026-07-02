@@ -19,6 +19,7 @@ import (
 	"typstpad/internal/collab"
 	"typstpad/internal/compile"
 	"typstpad/internal/config"
+	"typstpad/internal/mail"
 	"typstpad/internal/seed"
 	"typstpad/internal/store"
 	"typstpad/internal/versions"
@@ -88,6 +89,7 @@ func serveCmd() *cobra.Command {
 				Collab:   cc,
 				Compiler: comp,
 				Versions: snap,
+				Mailer:   mail.New(cfg),
 				SPA:      web.Dist(),
 				OnDocStored: func(projectID string) {
 					snap.MarkDirty(projectID)
