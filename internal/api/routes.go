@@ -86,6 +86,7 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.Get("/content", s.handleFileContent)
 			r.With(auth.RequireScope("write")).Patch("/", s.handleRenameFile)
 			r.With(auth.RequireScope("write")).Delete("/", s.handleDeleteFile)
+			r.With(auth.RequireScope("write")).Post("/lock", s.handleSetFileLock)
 			r.Post("/collab-token", s.handleCollabToken)
 			r.Get("/suggestions", s.handleListSuggestions)
 			r.With(auth.RequireScope("write")).Post("/suggestions", s.handleCreateSuggestion)

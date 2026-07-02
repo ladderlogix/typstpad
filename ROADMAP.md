@@ -54,7 +54,9 @@ deployed through the pipeline, and verified.
 - [x] Team-scoped collections — a collection can belong to a team and is visible to all
       its members (create with a team in the New-collection dialog); rename/delete limited
       to the owner or a team admin
-- [ ] Per-file permissions
+- [x] Per-file permissions — the owner can lock a file (🔒 in the file tree) so only they
+      can edit it; everyone else gets a read-only collab session and 403 on edit/rename/
+      delete. Enforced server-side at the collab-token, apply-edit, rename and delete paths.
 - [x] Project favorites/starring (star on cards + Favorites filter); trash with restore
       (deletes go to a Trash view with restore / delete-forever; owner-only)
 - [x] Admin audit log — records role changes, user/project deletions, sharing, and

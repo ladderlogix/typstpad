@@ -166,6 +166,10 @@ func (s *Server) handleRenameFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if fileLockedFor(f, p) {
+		writeErr(w, http.StatusForbidden, "this file is locked; only the owner can rename it")
+		return
+	}
 	var req struct {
 		Path string `json:"path"`
 	}
@@ -190,9 +194,33 @@ func (s *Server) handleRenameFile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// handleSetFileLock locks/unlocks a file. Only the project owner may change it.
+func (s *Server) handleSetFileLock(w http.ResponseWriter, r *http.Request) {
+	f, p, ok := s.fileAccess(w, r, chi.URLParam(r, "fileID"), "owner")
+	if !ok {
+		return
+	}
+	var req struct {
+		Locked bool `json:"locked"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if err := s.Store.SetFileLocked(r.Context(), f.ID, req.Locked); err != nil {
+		fail(w, err)
+		return
+	}
+	s.Hub.Publish(p.ID, Event{Type: "files.changed"})
+	writeJSON(w, http.StatusOK, map[string]bool{"locked": req.Locked})
+}
+
 func (s *Server) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	f, p, ok := s.fileAccess(w, r, chi.URLParam(r, "fileID"), "editor")
 	if !ok {
+		return
+	}
+	if fileLockedFor(f, p) {
+		writeErr(w, http.StatusForbidden, "this file is locked; only the owner can delete it")
 		return
 	}
 	if f.Path == p.MainPath {

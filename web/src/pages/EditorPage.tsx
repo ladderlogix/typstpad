@@ -49,6 +49,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
   const activeFile = files.data?.find((f) => f.id === activeFileId) ?? null;
   const canEdit = roleAtLeast(project.data?.role, "editor");
   const canSuggest = roleAtLeast(project.data?.role, "suggester");
+  const isOwner = project.data?.role === "owner";
 
   // Pick the main file once files are known.
   useEffect(() => {
@@ -521,19 +522,22 @@ export default function EditorPage({ projectId }: { projectId: string }) {
             activeFileId={activeFileId}
             mainPath={project.data?.mainPath ?? "main.typ"}
             canEdit={canEdit}
+            isOwner={isOwner}
             onSelect={(f) => f.kind === "text" && setActiveFileId(f.id)}
           />
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-gray-200 dark:border-gray-800 lg:border-b-0 lg:border-r">
-          {canEdit && activeFile?.kind === "text" && <FormatToolbar getView={() => viewRef.current} />}
+          {canEdit && activeFile?.kind === "text" && !(activeFile.locked && !isOwner) && (
+            <FormatToolbar getView={() => viewRef.current} />
+          )}
           {session && synced && activeFile ? (
             <CodeEditor
               key={session.fileId}
               ydoc={session.doc}
               ytext={session.ytext}
               awareness={session.provider.awareness!}
-              readOnly={!canEdit}
+              readOnly={!canEdit || (!!activeFile?.locked && !isOwner)}
               annotations={annotationData}
               callbacks={{
                 onSelectSuggestion: () => setSidePanel("suggestions"),

@@ -76,6 +76,12 @@ func (s *Server) projectAccess(w http.ResponseWriter, r *http.Request, projectID
 }
 
 // fileAccess resolves a file and checks project access in one step.
+// fileLockedFor reports whether a locked file blocks this user from editing it.
+// Locked files are editable only by the project owner.
+func fileLockedFor(f *store.File, p *store.Project) bool {
+	return f.Locked && p.Role != "owner"
+}
+
 func (s *Server) fileAccess(w http.ResponseWriter, r *http.Request, fileID, minRole string) (*store.File, *store.Project, bool) {
 	f, err := s.Store.FileByID(r.Context(), fileID)
 	if err != nil {

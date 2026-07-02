@@ -8,10 +8,11 @@ interface Props {
   activeFileId: string | null;
   mainPath: string;
   canEdit: boolean;
+  isOwner: boolean;
   onSelect: (f: FileEntry) => void;
 }
 
-export default function FileTree({ projectId, files, activeFileId, mainPath, canEdit, onSelect }: Props) {
+export default function FileTree({ projectId, files, activeFileId, mainPath, canEdit, isOwner, onSelect }: Props) {
   const queryClient = useQueryClient();
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,6 +30,11 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
   });
   const deleteFile = useMutation({
     mutationFn: (id: string) => api.del(`/api/files/${id}`),
+    onSuccess: invalidate,
+    onError: (e: Error) => alert(e.message),
+  });
+  const setLock = useMutation({
+    mutationFn: ({ id, locked }: { id: string; locked: boolean }) => api.post(`/api/files/${id}/lock`, { locked }),
     onSuccess: invalidate,
     onError: (e: Error) => alert(e.message),
   });
@@ -105,7 +111,20 @@ export default function FileTree({ projectId, files, activeFileId, mainPath, can
             >
               <span className="text-xs">{f.kind === "asset" ? "🖼" : "📄"}</span>
               <span className="flex-1 truncate">{f.path}</span>
+              {f.locked && <span title="Locked: only the owner can edit">🔒</span>}
               {f.path === mainPath && <span className="text-[10px] text-gray-400">main</span>}
+              {isOwner && (
+                <span
+                  title={f.locked ? "Unlock this file" : "Lock this file (only you can edit)"}
+                  className="hidden cursor-pointer text-xs text-gray-400 hover:text-indigo-600 group-hover:inline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLock.mutate({ id: f.id, locked: !f.locked });
+                  }}
+                >
+                  {f.locked ? "🔓" : "🔒"}
+                </span>
+              )}
               {canEdit && f.path !== mainPath && (
                 <span className="hidden gap-1 group-hover:flex">
                   {f.kind === "text" && (

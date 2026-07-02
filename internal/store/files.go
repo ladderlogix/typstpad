@@ -17,14 +17,15 @@ type File struct {
 	BlobHash  []byte    `json:"-"`
 	Mime      string    `json:"mime"`
 	Size      int64     `json:"size"`
+	Locked    bool      `json:"locked"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-const fileCols = `id, project_id, path, kind, blob_hash, mime, size, created_at`
+const fileCols = `id, project_id, path, kind, blob_hash, mime, size, locked, created_at`
 
 func scanFile(row pgx.Row) (*File, error) {
 	var f File
-	err := row.Scan(&f.ID, &f.ProjectID, &f.Path, &f.Kind, &f.BlobHash, &f.Mime, &f.Size, &f.CreatedAt)
+	err := row.Scan(&f.ID, &f.ProjectID, &f.Path, &f.Kind, &f.BlobHash, &f.Mime, &f.Size, &f.Locked, &f.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -94,6 +95,11 @@ func (s *Store) RenameFile(ctx context.Context, fileID, newPath string) error {
 
 func (s *Store) DeleteFile(ctx context.Context, fileID string) error {
 	_, err := s.Pool.Exec(ctx, `DELETE FROM files WHERE id=$1`, fileID)
+	return err
+}
+
+func (s *Store) SetFileLocked(ctx context.Context, fileID string, locked bool) error {
+	_, err := s.Pool.Exec(ctx, `UPDATE files SET locked=$2 WHERE id=$1`, fileID, locked)
 	return err
 }
 

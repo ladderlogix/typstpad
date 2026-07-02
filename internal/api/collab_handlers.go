@@ -27,7 +27,7 @@ func (s *Server) handleCollabToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mode := "ro"
-	if roleAtLeast(p.Role, "editor") && auth.HasScope(r.Context(), "write") {
+	if roleAtLeast(p.Role, "editor") && auth.HasScope(r.Context(), "write") && !fileLockedFor(f, p) {
 		mode = "rw"
 	}
 	token, err := s.Collab.MintToken(f.ID, u.ID, u.Name, u.Color, mode)
@@ -48,6 +48,10 @@ func (s *Server) handleCollabToken(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleApplyEdit(w http.ResponseWriter, r *http.Request) {
 	f, p, ok := s.fileAccess(w, r, chi.URLParam(r, "fileID"), "editor")
 	if !ok {
+		return
+	}
+	if fileLockedFor(f, p) {
+		writeErr(w, http.StatusForbidden, "this file is locked; only the owner can edit it")
 		return
 	}
 	var req struct {

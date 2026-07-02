@@ -85,6 +85,7 @@ export interface FileEntry {
   kind: "text" | "asset";
   mime: string;
   size: number;
+  locked?: boolean;
 }
 
 export interface Snapshot {
