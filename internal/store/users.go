@@ -23,6 +23,10 @@ type User struct {
 
 const userCols = `id, email, name, password_hash, is_admin, color, email_verified, created_at`
 
+// userColsU is userCols qualified with the `u` alias, for queries that join
+// another table which also has id/created_at columns (e.g. oidc_identities).
+const userColsU = `u.id, u.email, u.name, u.password_hash, u.is_admin, u.color, u.email_verified, u.created_at`
+
 func scanUser(row pgx.Row) (*User, error) {
 	var u User
 	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.IsAdmin, &u.Color, &u.EmailVerified, &u.CreatedAt)
@@ -92,7 +96,7 @@ func (s *Store) DeleteUser(ctx context.Context, id string) error {
 // UserByOIDC finds a user by OIDC identity.
 func (s *Store) UserByOIDC(ctx context.Context, issuer, subject string) (*User, error) {
 	return scanUser(s.Pool.QueryRow(ctx, `
-		SELECT `+userCols+` FROM users u
+		SELECT `+userColsU+` FROM users u
 		JOIN oidc_identities oi ON oi.user_id = u.id
 		WHERE oi.issuer=$1 AND oi.subject=$2`, issuer, subject))
 }
