@@ -10,17 +10,23 @@ interface Props {
   compiling: boolean;
   /** Fired when the user clicks in the preview: fraction of document height. */
   onJumpToFraction?: (fraction: number) => void;
+  /** Fired when the user scrolls the preview: fraction scrolled (0..1). */
+  onScrollFraction?: (fraction: number) => void;
   syncEnabled: boolean;
   onToggleSync: () => void;
 }
 
 const PreviewPane = forwardRef<PreviewHandle, Props>(function PreviewPane(
-  { svg, compiling, onJumpToFraction, syncEnabled, onToggleSync },
+  { svg, compiling, onJumpToFraction, onScrollFraction, syncEnabled, onToggleSync },
   ref
 ) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(100);
+  // Suppress the scroll event we cause ourselves (editor -> preview), so it
+  // doesn't bounce straight back to the editor.
+  const programmaticRef = useRef(false);
+  const scrollThrottle = useRef<number | null>(null);
 
   useEffect(() => {
     if (contentRef.current && svg !== undefined) {
@@ -33,10 +39,23 @@ const PreviewPane = forwardRef<PreviewHandle, Props>(function PreviewPane(
       const scroller = scrollerRef.current;
       const content = contentRef.current;
       if (!scroller || !content) return;
+      programmaticRef.current = true;
+      window.setTimeout(() => (programmaticRef.current = false), 500);
       const target = content.offsetTop + fraction * content.scrollHeight - scroller.clientHeight / 2;
       scroller.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
     },
   }));
+
+  function handleScroll() {
+    if (programmaticRef.current || !syncEnabled || !onScrollFraction) return;
+    if (scrollThrottle.current) return;
+    scrollThrottle.current = window.setTimeout(() => (scrollThrottle.current = null), 120);
+    const s = scrollerRef.current;
+    if (!s) return;
+    const max = s.scrollHeight - s.clientHeight;
+    if (max <= 0) return;
+    onScrollFraction(Math.min(1, Math.max(0, s.scrollTop / max)));
+  }
 
   function handleClick(e: React.MouseEvent) {
     if (!onJumpToFraction || !contentRef.current || !scrollerRef.current) return;
@@ -69,7 +88,7 @@ const PreviewPane = forwardRef<PreviewHandle, Props>(function PreviewPane(
           reset
         </button>
       </div>
-      <div ref={scrollerRef} className="flex-1 overflow-auto p-4" onClick={handleClick}>
+      <div ref={scrollerRef} className="flex-1 overflow-auto p-4" onClick={handleClick} onScroll={handleScroll}>
         <div
           ref={contentRef}
           className="tp-preview mx-auto origin-top bg-white shadow"

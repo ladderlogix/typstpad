@@ -59,7 +59,10 @@ deployed through the pipeline, and verified.
       (deletes go to a Trash view with restore / delete-forever; owner-only)
 - [x] Admin audit log — records role changes, user/project deletions, sharing, and
       settings updates; viewer in the Admin panel (most recent first)
-- [ ] Exact scroll-sync / jump-to-source (SyncTeX-style)
+- [x] Scroll-sync / jump-to-source — bidirectional linked scrolling (editor cursor →
+      preview, and scrolling the preview scrolls the editor to match) plus double-click the
+      preview to jump the editor. Position-fraction based; pixel-exact SyncTeX would need
+      Typst source-span data the WASM SVG path doesn't currently expose.
 - [x] Mobile/responsive editor layout — dashboard grid + header collapse to one column on
       narrow screens; the editor's file-tree / editor / preview / side-panel stack vertically
       below the `lg` breakpoint and sit side-by-side above it; toolbars wrap.

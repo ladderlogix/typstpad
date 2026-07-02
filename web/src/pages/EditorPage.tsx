@@ -296,6 +296,16 @@ export default function EditorPage({ projectId }: { projectId: string }) {
     view.focus();
   }, []);
 
+  // Linked scrolling: scrolling the preview scrolls the editor to match. The
+  // editor only pushes on cursor movement (not scroll), so there's no loop.
+  const handlePreviewScroll = useCallback((fraction: number) => {
+    if (!syncEnabledRef.current) return;
+    const dom = viewRef.current?.scrollDOM;
+    if (!dom) return;
+    const max = dom.scrollHeight - dom.clientHeight;
+    if (max > 0) dom.scrollTop = fraction * max;
+  }, []);
+
   // ---- actions ----
   const viewRef = useRef<EditorView | null>(null);
   const [showShare, setShowShare] = useState(false);
@@ -598,6 +608,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
             svg={svg}
             compiling={compiling}
             onJumpToFraction={handleJumpToFraction}
+            onScrollFraction={handlePreviewScroll}
             syncEnabled={syncEnabled}
             onToggleSync={() => setSyncEnabled((s) => !s)}
           />
