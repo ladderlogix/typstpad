@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -145,7 +146,7 @@ func (s *Server) handleAdminPutSettings(w http.ResponseWriter, r *http.Request) 
 		SignupAllowlist          *string `json:"signupAllowlist"`
 		RequireEmailVerification *bool   `json:"requireEmailVerification"`
 		SMTPHost                 *string `json:"smtpHost"`
-		SMTPPort                 *string `json:"smtpPort"`
+		SMTPPort                 *int    `json:"smtpPort"`
 		SMTPUsername             *string `json:"smtpUsername"`
 		SMTPPassword             *string `json:"smtpPassword"`
 		SMTPFrom                 *string `json:"smtpFrom"`
@@ -188,11 +189,13 @@ func (s *Server) handleAdminPutSettings(w http.ResponseWriter, r *http.Request) 
 
 	oidcBefore := s.Settings.OIDCIssuer() + "|" + s.Settings.OIDCClientID() + "|" + s.Settings.OIDCClientSecret() + "|" + s.Settings.OIDCScopes()
 
+	if req.SMTPPort != nil && !set(settings.KeySMTPPort, strconv.Itoa(*req.SMTPPort)) {
+		return
+	}
 	if !setBool(settings.KeyAllowRegistration, req.AllowRegistration) ||
 		!setStr(settings.KeySignupAllowlist, req.SignupAllowlist) ||
 		!setBool(settings.KeyRequireEmailVerification, req.RequireEmailVerification) ||
 		!setStr(settings.KeySMTPHost, req.SMTPHost) ||
-		!setStr(settings.KeySMTPPort, req.SMTPPort) ||
 		!setStr(settings.KeySMTPUsername, req.SMTPUsername) ||
 		!setSecret(settings.KeySMTPPassword, req.SMTPPassword) ||
 		!setStr(settings.KeySMTPFrom, req.SMTPFrom) ||
