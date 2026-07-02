@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+}
+
+/* CodeMirror fills its pane */
+.cm-editor {
+  height: 100%;
+  font-size: 14px;
+}
+.cm-editor .cm-scroller {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* remote selection styling from y-codemirror.next */
+.cm-ySelectionInfo {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* annotation decorations */
+.tp-suggest-insert {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  background: color-mix(in srgb, var(--tp-author-color, #16a34a) 18%, transparent);
+  cursor: pointer;
+}
+.tp-suggest-delete {
+  text-decoration: line-through;
+  background: color-mix(in srgb, #dc2626 15%, transparent);
+  cursor: pointer;
+}
+.tp-comment-range {
+  background: color-mix(in srgb, #eab308 25%, transparent);
+  cursor: pointer;
+}
+
+.tp-preview svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
