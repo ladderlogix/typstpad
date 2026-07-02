@@ -16,6 +16,7 @@ import (
 	"typstpad/internal/config"
 	"typstpad/internal/mail"
 	mcpsrv "typstpad/internal/mcp"
+	"typstpad/internal/metrics"
 	"typstpad/internal/ratelimit"
 	"typstpad/internal/settings"
 	"typstpad/internal/store"
@@ -53,6 +54,7 @@ func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
+	r.Use(metrics.Middleware)
 	r.Use(middleware.Timeout(120 * time.Second))
 	r.Use(s.Auth.Authenticate)
 
@@ -63,6 +65,9 @@ func (s *Server) Router() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	// Prometheus scrape endpoint (bearer-token gated; internal only).
+	r.Handle("/metrics", metrics.Handler(s.Cfg.MetricsToken))
 
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {

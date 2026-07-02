@@ -20,6 +20,7 @@ import (
 	"typstpad/internal/compile"
 	"typstpad/internal/config"
 	"typstpad/internal/mail"
+	"typstpad/internal/metrics"
 	"typstpad/internal/seed"
 	"typstpad/internal/settings"
 	"typstpad/internal/store"
@@ -81,6 +82,22 @@ func serveCmd() *cobra.Command {
 				hub.Publish(projectID, api.Event{Type: typ})
 			})
 			go snap.Run(ctx)
+
+			// Refresh business gauges for Prometheus every 30s.
+			go func() {
+				t := time.NewTicker(30 * time.Second)
+				defer t.Stop()
+				for {
+					if stats, err := st.Stats(ctx); err == nil {
+						metrics.SetBusiness(stats.Users, stats.Projects, stats.Documents, stats.Teams, stats.ActiveSessions)
+					}
+					select {
+					case <-ctx.Done():
+						return
+					case <-t.C:
+					}
+				}
+			}()
 
 			settingsSvc, err := settings.New(ctx, st, cfg)
 			if err != nil {

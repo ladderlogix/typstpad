@@ -28,6 +28,9 @@ type Config struct {
 	MaxProjectsPerUser  int
 	MaxAssetBytesPerUser int64
 
+	// MetricsToken gates the Prometheus /metrics endpoint (empty = disabled).
+	MetricsToken string
+
 	// SignupAllowlist restricts which emails may register (comma/space
 	// separated; each entry is a domain like "ics.red" or an exact address
 	// like "me@ics.red"). Empty allows any email.
@@ -62,6 +65,7 @@ func FromEnv() (*Config, error) {
 		OIDCScopes:      getenv("OIDC_SCOPES", "openid profile email"),
 		CompileTimeout:     intenv("COMPILE_TIMEOUT_SECONDS", 30),
 		CompileMaxMemoryMB: intenv("COMPILE_MAX_MEMORY_MB", 2048),
+		MetricsToken:       os.Getenv("METRICS_TOKEN"),
 		MaxProjectsPerUser:   intenv("MAX_PROJECTS_PER_USER", 500),
 		MaxAssetBytesPerUser: int64(intenv("MAX_ASSET_MB_PER_USER", 1024)) << 20,
 		SignupAllowlist: os.Getenv("SIGNUP_ALLOWLIST"),

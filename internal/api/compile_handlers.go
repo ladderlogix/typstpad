@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"typstpad/internal/compile"
+	"typstpad/internal/metrics"
 	"typstpad/internal/store"
 )
 
@@ -48,11 +49,14 @@ func (s *Server) runCompile(w http.ResponseWriter, r *http.Request, p *store.Pro
 		fail(w, err)
 		return nil
 	}
+	start := time.Now()
 	res, err := s.Compiler.Compile(r.Context(), p.MainPath, jobFiles)
 	if err != nil {
+		metrics.RecordCompile(false, time.Since(start))
 		fail(w, err)
 		return nil
 	}
+	metrics.RecordCompile(res.OK, time.Since(start))
 	return res
 }
 
