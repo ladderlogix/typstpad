@@ -1,0 +1,9 @@
+/typstpad
+/data/
+node_modules/
+web/dist/
+!web/dist/index.html
+collab/dist/
+.env
+*.pdf
+.DS_Store
