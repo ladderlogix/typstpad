@@ -14,8 +14,11 @@ deployed through the pipeline, and verified.
 ## P1 — Production hardening
 - [x] Compile memory limits — typst subprocess wrapped with `ulimit -v`
       (COMPILE_MAX_MEMORY_MB=2048); verified normal compiles unaffected
-- [ ] Automated tests (collab merge, suggestions accept/reject, version restore) + CI gate
-      that runs them before the deploy hook proceeds
+- [x] Automated tests + CI gate — Go unit tests for role checks, @mention parsing, zip
+      import prefix/path handling, password + token hashing, and the diagnostics parser.
+      The Docker build runs `go vet ./... && go test ./...` before producing the binary,
+      so a red test fails the image build and the deploy hook rolls back.
+      (Deeper DB-integration tests for collab merge / restore are still a future add.)
 - [x] Deeper deploy health check — deploy hook checks `/api/auth/config` (routing + settings
       + JSON), not just the DB ping, before considering the deploy healthy (else rolls back)
 - [x] Observability (metrics) — Prometheus + Grafana stack; app instrumented (HTTP
