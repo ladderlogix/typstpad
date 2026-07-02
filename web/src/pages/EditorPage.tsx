@@ -393,7 +393,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
   return (
     <div className="flex h-full flex-col">
       {/* top bar */}
-      <header className="flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2">
         <Link to="/projects" className="text-sm text-gray-400 hover:text-gray-700 dark:text-gray-300" title="Back to projects">
           ←
         </Link>
@@ -503,8 +503,8 @@ export default function EditorPage({ projectId }: { projectId: string }) {
       </header>
 
       {/* main area */}
-      <div className="flex min-h-0 flex-1">
-        <div className="w-56 shrink-0">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="max-h-44 w-full shrink-0 overflow-y-auto border-b border-gray-200 dark:border-gray-800 lg:max-h-none lg:w-56 lg:border-b-0">
           <FileTree
             projectId={projectId}
             files={files.data ?? []}
@@ -515,7 +515,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col border-r border-gray-200 dark:border-gray-800">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-gray-200 dark:border-gray-800 lg:border-b-0 lg:border-r">
           {canEdit && activeFile?.kind === "text" && <FormatToolbar getView={() => viewRef.current} />}
           {session && synced && activeFile ? (
             <CodeEditor
@@ -592,7 +592,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
           </div>
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1">
           <PreviewPane
             ref={previewRef}
             svg={svg}
@@ -604,7 +604,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
         </div>
 
         {sidePanel && (
-          <div className="flex w-80 shrink-0 flex-col border-l border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+          <div className="flex max-h-72 w-full shrink-0 flex-col border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 lg:max-h-none lg:w-80 lg:border-l lg:border-t-0">
             <div className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               {sidePanel === "suggestions" ? "Suggestions" : sidePanel === "comments" ? "Comments" : "Outline"}
             </div>

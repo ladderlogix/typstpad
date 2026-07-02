@@ -52,8 +52,11 @@ deployed through the pipeline, and verified.
 - [x] Admin audit log — records role changes, user/project deletions, sharing, and
       settings updates; viewer in the Admin panel (most recent first)
 - [ ] Exact scroll-sync / jump-to-source (SyncTeX-style)
-- [ ] Mobile/responsive editor layout
-- [ ] Accessibility pass (keyboard nav, ARIA, screen readers)
+- [x] Mobile/responsive editor layout — dashboard grid + header collapse to one column on
+      narrow screens; the editor's file-tree / editor / preview / side-panel stack vertically
+      below the `lg` breakpoint and sit side-by-side above it; toolbars wrap.
+- [x] Accessibility pass — aria-labels on icon-only controls (theme, bell, formatting),
+      `role="toolbar"` on the format bar, focus-visible rings; page already sets lang + viewport.
 
 ---
 Progress notes: see git history. Each batch is built on `main`, pushed to

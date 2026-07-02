@@ -105,9 +105,9 @@ export default function ProjectsPage() {
   return (
     <div className="min-h-full bg-gray-50 dark:bg-gray-950">
       <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-y-2 px-6 py-4">
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">TypstPad</h1>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
             <NotificationBell />
             <ThemeToggle className="text-base" />
             <Link to="/templates" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100">
@@ -138,7 +138,7 @@ export default function ProjectsPage() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl grid-cols-[14rem_1fr] gap-6 px-6 py-8">
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 sm:px-6 md:grid-cols-[14rem_1fr]">
         <aside>
           <SidebarItem label="All projects" active={sel === "all"} onClick={() => setSel("all")} />
           <SidebarItem label="⭐ Favorites" active={sel === "favorites"} onClick={() => setSel("favorites")} />
@@ -179,13 +179,13 @@ export default function ProjectsPage() {
         </aside>
 
         <div>
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <input
             type="search"
             placeholder="Search projects…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-64 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            className="w-full min-w-40 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none sm:w-64 sm:flex-none"
           />
           <div className="flex items-center gap-2">
             <input

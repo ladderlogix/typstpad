@@ -17,7 +17,11 @@ export default function FormatToolbar({ getView }: { getView: () => EditorView |
 )`;
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-2 py-1">
+    <div
+      role="toolbar"
+      aria-label="Text formatting"
+      className="flex flex-wrap items-center gap-0.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-2 py-1"
+    >
       <Btn title="Bold  *text*" onClick={act((v) => wrapSelection(v, "*", "*"))}>
         <span className="font-bold">B</span>
       </Btn>
@@ -72,8 +76,9 @@ function Btn({ children, title, onClick }: { children: React.ReactNode; title: s
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
-      className="flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+      className="flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs text-gray-600 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
     >
       {children}
     </button>
