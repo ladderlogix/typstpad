@@ -1,0 +1,53 @@
+# Dashy homepage for ics.red self-hosted services.
+# Auth is handled by Cloudflare Access in front of the tunnel hostname, so Dashy
+# itself runs without its own login.
+pageInfo:
+  title: ics.red
+  description: Self-hosted services
+  navLinks:
+    - title: Grafana
+      path: https://grafana.ics.red
+    - title: Git
+      path: https://git.ics.red
+
+appConfig:
+  theme: nord
+  layout: auto
+  iconSize: large
+  statusCheck: false
+  hideComponents:
+    hideSettings: false
+
+sections:
+  - name: Apps
+    icon: fas fa-rocket
+    items:
+      - title: TypstPad
+        description: Collaborative Typst editor
+        icon: 📝
+        url: https://typst.ics.red
+        target: newtab
+      - title: Grafana
+        description: Metrics & dashboards
+        icon: 📊
+        url: https://grafana.ics.red
+        target: newtab
+      - title: Git (Forgejo)
+        description: Code, CI, push-to-deploy
+        icon: 🌲
+        url: https://git.ics.red
+        target: newtab
+
+  - name: Ops
+    icon: fas fa-gears
+    items:
+      - title: TypstPad Admin
+        description: Users, settings, server stats
+        icon: 🛠️
+        url: https://typst.ics.red/admin
+        target: newtab
+      - title: Forgejo Actions
+        description: Deploy pipeline runs
+        icon: 🚀
+        url: https://git.ics.red/stephen/typstpad/actions
+        target: newtab

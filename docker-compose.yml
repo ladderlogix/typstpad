@@ -79,17 +79,38 @@ services:
     image: grafana/grafana:11.4.0
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3001:3000"   # localhost only; reach via SSH tunnel or a CF hostname
+      - "127.0.0.1:3001:3000"   # localhost only; reached via the Cloudflare tunnel
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # SSO: auto-login from the Cloudflare Access identity header. Grafana is
+      # only reachable via the tunnel (localhost bind), so the header is trusted
+      # from the internal/docker source. The local admin login stays as a fallback.
+      GF_AUTH_PROXY_ENABLED: "true"
+      GF_AUTH_PROXY_HEADER_NAME: "Cf-Access-Authenticated-User-Email"
+      GF_AUTH_PROXY_HEADER_PROPERTY: "username"
+      GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
+      GF_AUTH_PROXY_HEADERS: "Email:Cf-Access-Authenticated-User-Email"
+      GF_AUTH_PROXY_ENABLE_LOGIN_TOKEN: "false"
+      GF_AUTH_PROXY_WHITELIST: "172.16.0.0/12,10.0.0.0/8,127.0.0.1/32"
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: "${GRAFANA_SSO_ROLE:-Admin}"
     volumes:
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./deploy/grafana/dashboards:/etc/grafana/dashboards:ro
       - grafanadata:/var/lib/grafana
     depends_on: [prometheus]
+    networks: [internal]
+
+  # ---- Dashy homepage (behind Cloudflare Access) ----
+  dashy:
+    image: lissy93/dashy:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:8080"   # localhost only; reached via the Cloudflare tunnel
+    volumes:
+      - ./deploy/dashy/conf.yml:/app/user-data/conf.yml:ro
     networks: [internal]
 
 volumes:
