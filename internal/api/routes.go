@@ -60,6 +60,9 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.With(auth.RequireScope("write")).Delete("/members/{userID}", s.handleRemoveMember)
 			r.Get("/links", s.handleListLinks)
 			r.With(auth.RequireScope("write")).Post("/links", s.handleCreateLink)
+			r.Get("/public-share", s.handleGetPublicShare)
+			r.With(auth.RequireScope("write")).Post("/public-share", s.handleEnablePublicShare)
+			r.With(auth.RequireScope("write")).Delete("/public-share", s.handleDisablePublicShare)
 			r.Get("/teams", s.handleListProjectTeams)
 			r.With(auth.RequireScope("write")).Post("/teams", s.handleShareProjectWithTeam)
 			r.With(auth.RequireScope("write")).Delete("/teams/{teamID}", s.handleUnshareProjectTeam)
@@ -146,6 +149,12 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 	// Asset bytes are fetched with <img>/worker requests (no custom headers),
 	// so they authenticate via session cookie inside the handler.
 	r.Get("/assets/{fileID}", s.handleAssetBytes)
+
+	// Public read-only share: anonymous access to a project's compiled PDF.
+	// The PDF triggers a server compile, so rate-limit it per IP.
+	publicCompileLimit := ratelimit.New(30, time.Minute).Middleware(ratelimit.ClientIP)
+	r.Get("/public/{token}", s.handlePublicMeta)
+	r.With(publicCompileLimit).Get("/public/{token}/pdf", s.handlePublicPDF)
 
 	// Typst Universe package + font proxies for the in-browser compiler
 	// (disk-cached, so browsers never need direct internet access).

@@ -33,7 +33,9 @@ deployed through the pipeline, and verified.
       TODO: find-and-replace across files (CM6 has single-file search built in).
 - [x] Export/import: download the whole project (source + assets) as a zip; import a
       Typst project zip (nested-dir stripping, binary-asset detection, main-file autodetect)
-- [ ] Public read-only compiled share link (view the PDF without an account)
+- [x] Public read-only compiled share link — owner toggles a per-project public link in
+      the Share dialog; anyone with it views the server-compiled PDF at /share/{token}
+      with no account (rate-limited per IP; token retrievable so the URL stays copyable)
 
 ## P3 — Nice-to-haves
 - [ ] Team-scoped collections (shared groups)

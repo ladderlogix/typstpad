@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MergeView } from "@codemirror/merge";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
-import { api, type Member, type ProjectTeam, type ShareLink, type Snapshot, type Team } from "../api/client";
+import { api, type Member, type ProjectTeam, type PublicShare, type ShareLink, type Snapshot, type Team } from "../api/client";
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
@@ -73,6 +73,31 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
     mutationFn: (id: string) => api.del(`/api/links/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["links", projectId] }),
   });
+
+  const publicShare = useQuery<PublicShare>({
+    queryKey: ["publicShare", projectId],
+    queryFn: () => api.get(`/api/projects/${projectId}/public-share`),
+    enabled: isOwner,
+  });
+  const invalidatePublic = () => queryClient.invalidateQueries({ queryKey: ["publicShare", projectId] });
+  const enablePublic = useMutation({
+    mutationFn: () => api.post<PublicShare>(`/api/projects/${projectId}/public-share`),
+    onSuccess: invalidatePublic,
+  });
+  const disablePublic = useMutation({
+    mutationFn: () => api.del(`/api/projects/${projectId}/public-share`),
+    onSuccess: invalidatePublic,
+  });
+  const [copied, setCopied] = useState(false);
+  const copyPublic = (url: string) => {
+    navigator.clipboard?.writeText(url).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {}
+    );
+  };
 
   // Teams the caller belongs to, and teams this project is already shared with.
   const myTeams = useQuery<Team[]>({ queryKey: ["teams"], queryFn: () => api.get("/api/teams"), enabled: isOwner });
@@ -224,6 +249,47 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
               ))}
               {links.data?.length === 0 && <li className="px-3 py-2 text-xs text-gray-400">No active links.</li>}
             </ul>
+          </section>
+        )}
+
+        {isOwner && (
+          <section>
+            <h3 className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Public link</h3>
+            <p className="mb-2 text-xs text-gray-400">
+              Anyone with this link can view the compiled PDF — no account needed. They can't edit or see the source.
+            </p>
+            {publicShare.data?.enabled ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={publicShare.data.url ?? ""}
+                    onFocus={(e) => e.target.select()}
+                    className="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  />
+                  <button
+                    onClick={() => copyPublic(publicShare.data!.url ?? "")}
+                    className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <button
+                  onClick={() => disablePublic.mutate()}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Turn off public link
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => enablePublic.mutate()}
+                disabled={enablePublic.isPending}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Enable public link
+              </button>
+            )}
           </section>
         )}
       </div>

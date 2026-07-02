@@ -10,6 +10,7 @@ import SettingsPage from "./pages/SettingsPage";
 import AdminPage from "./pages/AdminPage";
 import TeamsPage from "./pages/TeamsPage";
 import TemplatesPage from "./pages/TemplatesPage";
+import SharePage from "./pages/SharePage";
 
 export function useMe() {
   return useQuery<User>({
@@ -35,6 +36,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/share/:token" element={<SharePage />} />
       <Route path="/" element={<Navigate to="/projects" replace />} />
       <Route
         path="/projects"

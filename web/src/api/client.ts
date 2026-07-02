@@ -153,6 +153,12 @@ export interface ShareLink {
   token?: string;
 }
 
+export interface PublicShare {
+  enabled: boolean;
+  token?: string;
+  url?: string;
+}
+
 export interface APIToken {
   id: string;
   name: string;
