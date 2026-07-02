@@ -41,9 +41,10 @@ function Field({ label: l, children }: { label: string; children: React.ReactNod
 
 function ServerSettings() {
   const queryClient = useQueryClient();
-  const { data } = useQuery<AdminSettings>({
+  const { data, isLoading, error: loadError, refetch } = useQuery<AdminSettings>({
     queryKey: ["adminSettings"],
     queryFn: () => api.get("/api/admin/settings"),
+    retry: 2,
   });
   const [form, setForm] = useState<Partial<AdminSettings> & { smtpPassword?: string; oidcClientSecret?: string }>({});
   const [saved, setSaved] = useState("");
@@ -71,7 +72,18 @@ function ServerSettings() {
   });
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
-  if (!data) return <section className={card}>Loading…</section>;
+  if (isLoading) return <section className={card}>Loading…</section>;
+  if (loadError || !data)
+    return (
+      <section className={card}>
+        <p className="text-sm text-red-600 dark:text-red-400">
+          Couldn't load settings{loadError ? `: ${(loadError as Error).message}` : ""}.
+        </p>
+        <button onClick={() => refetch()} className="mt-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-700">
+          Retry
+        </button>
+      </section>
+    );
 
   return (
     <section className={card}>
