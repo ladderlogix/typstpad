@@ -208,5 +208,132 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "not authenticated")
 		return
 	}
-	writeJSON(w, http.StatusOK, u)
+	// Tell the client whether this is a local (password) account so the UI can
+	// show the change-password form.
+	writeJSON(w, http.StatusOK, meResponse{User: u, HasPassword: u.PasswordHash != nil})
+}
+
+type meResponse struct {
+	*store.User
+	HasPassword bool `json:"hasPassword"`
+}
+
+// handleUpdateProfile lets a user change their own display name and color.
+func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFrom(r.Context())
+	var req struct {
+		Name  string `json:"name"`
+		Color string `json:"color"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = u.Name
+	}
+	color := u.Color
+	if strings.HasPrefix(req.Color, "#") && len(req.Color) == 7 {
+		color = req.Color
+	}
+	if err := s.Store.UpdateUser(r.Context(), u.ID, name, color); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// handleChangePassword changes the caller's password after verifying the
+// current one (local accounts only).
+func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFrom(r.Context())
+	var req struct {
+		CurrentPassword string `json:"currentPassword"`
+		NewPassword     string `json:"newPassword"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if u.PasswordHash == nil {
+		writeErr(w, http.StatusBadRequest, "this account signs in with SSO and has no password")
+		return
+	}
+	if !auth.VerifyPassword(req.CurrentPassword, *u.PasswordHash) {
+		writeErr(w, http.StatusUnauthorized, "current password is incorrect")
+		return
+	}
+	if len(req.NewPassword) < 8 {
+		writeErr(w, http.StatusBadRequest, "new password must be at least 8 characters")
+		return
+	}
+	hash, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if err := s.Store.SetPassword(r.Context(), u.ID, hash); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+const passwordResetTTL = time.Hour
+
+func (s *Server) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	// Always return ok — never reveal whether an email is registered.
+	if s.Settings.SMTPEnabled() {
+		user, err := s.Store.UserByEmail(r.Context(), strings.TrimSpace(strings.ToLower(req.Email)))
+		if err == nil && user.PasswordHash != nil {
+			token, hash, terr := auth.NewToken("")
+			if terr == nil {
+				if err := s.Store.CreatePasswordReset(r.Context(), hash, user.ID, time.Now().Add(passwordResetTTL)); err == nil {
+					link := strings.TrimRight(s.Cfg.PublicURL, "/") + "/reset-password?token=" + token
+					if err := s.Mailer.SendPasswordReset(user.Email, user.Name, link); err != nil {
+						slog.Error("send password reset failed", "err", err)
+					}
+				}
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if len(req.Password) < 8 {
+		writeErr(w, http.StatusBadRequest, "password must be at least 8 characters")
+		return
+	}
+	userID, err := s.Store.ConsumePasswordReset(r.Context(), auth.HashToken(req.Token))
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "this reset link is invalid or has expired")
+		return
+	}
+	hash, err := auth.HashPassword(req.Password)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if err := s.Store.SetPassword(r.Context(), userID, hash); err != nil {
+		fail(w, err)
+		return
+	}
+	// Reset also verifies the email (they proved control of it) and logs out
+	// other sessions.
+	_ = s.Store.MarkEmailVerified(r.Context(), userID)
+	_ = s.Store.DeleteUserSessions(r.Context(), userID)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

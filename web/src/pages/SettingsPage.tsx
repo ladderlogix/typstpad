@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type APIToken } from "../api/client";
+import { useMe } from "../App";
+import { ThemeToggle } from "../theme";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -34,10 +36,12 @@ export default function SettingsPage() {
             ← Projects
           </Link>
           <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+          <ThemeToggle className="ml-auto text-base" />
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl space-y-8 px-6 py-8">
+        <ProfileSection />
         <section>
           <h2 className="mb-2 text-base font-semibold text-gray-900 dark:text-gray-100">API tokens</h2>
           <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
@@ -107,5 +111,92 @@ typstpad mcp --url ${window.location.origin} --token tfp_...`}
         </section>
       </main>
     </div>
+  );
+}
+
+const cardCls = "rounded-md border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900";
+const inputCls =
+  "w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800";
+
+function ProfileSection() {
+  const me = useMe();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("");
+  const [seeded, setSeeded] = useState(false);
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
+  const [profMsg, setProfMsg] = useState("");
+
+  // Seed the form once from the loaded user.
+  if (me.data && !seeded) {
+    setName(me.data.name);
+    setColor(me.data.color);
+    setSeeded(true);
+  }
+
+  const saveProfile = useMutation({
+    mutationFn: () => api.patch("/api/auth/me", { name, color }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      setProfMsg("Saved");
+      setTimeout(() => setProfMsg(""), 2000);
+    },
+    onError: (e: Error) => setProfMsg(e.message),
+  });
+  const changePw = useMutation({
+    mutationFn: () => api.post("/api/auth/change-password", { currentPassword: cur, newPassword: next }),
+    onSuccess: () => {
+      setCur("");
+      setNext("");
+      setPwMsg("Password changed");
+      setTimeout(() => setPwMsg(""), 2500);
+    },
+    onError: (e: Error) => setPwMsg(e.message),
+  });
+
+  return (
+    <section className={cardCls}>
+      <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">Profile</h2>
+      <div className="flex items-end gap-3">
+        <label className="flex-1">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Display name</span>
+          <input className={`mt-1 ${inputCls}`} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Color</span>
+          <input type="color" className="mt-1 h-9 w-12 rounded border border-gray-300 dark:border-gray-700" value={color} onChange={(e) => setColor(e.target.value)} />
+        </label>
+        <button onClick={() => saveProfile.mutate()} className="h-9 rounded-md bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700">
+          Save
+        </button>
+        {profMsg && <span className="pb-2 text-sm text-green-600 dark:text-green-400">{profMsg}</span>}
+      </div>
+
+      {me.data?.hasPassword && (
+        <>
+          <h3 className="mb-2 mt-6 text-sm font-semibold text-gray-800 dark:text-gray-200">Change password</h3>
+          <div className="flex items-end gap-3">
+            <label className="flex-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Current password</span>
+              <input type="password" className={`mt-1 ${inputCls}`} value={cur} onChange={(e) => setCur(e.target.value)} />
+            </label>
+            <label className="flex-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">New password</span>
+              <input type="password" className={`mt-1 ${inputCls}`} value={next} onChange={(e) => setNext(e.target.value)} />
+            </label>
+            <button
+              onClick={() => changePw.mutate()}
+              disabled={!cur || next.length < 8}
+              className="h-9 rounded-md bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Update
+            </button>
+          </div>
+          {pwMsg && <p className="mt-2 text-sm text-green-600 dark:text-green-400">{pwMsg}</p>}
+        </>
+      )}
+    </section>
   );
 }

@@ -46,6 +46,22 @@ func (m *Mailer) SendVerification(toEmail, toName, link string) error {
 	return m.send(toEmail, subject, text, html)
 }
 
+// SendPasswordReset emails a password-reset link.
+func (m *Mailer) SendPasswordReset(toEmail, toName, link string) error {
+	subject := "Reset your TypstPad password"
+	text := fmt.Sprintf(
+		"Hi %s,\n\nWe received a request to reset your TypstPad password. Use this link:\n\n%s\n\n"+
+			"This link expires in 1 hour. If you didn't request this, you can ignore this message.\n",
+		toName, link)
+	html := fmt.Sprintf(
+		`<p>Hi %s,</p><p>We received a request to reset your TypstPad password.</p>`+
+			`<p><a href="%s">Reset my password</a></p>`+
+			`<p style="color:#666;font-size:13px">Or paste this link: %s<br>This link expires in 1 hour. `+
+			`If you didn't request this, you can ignore this message.</p>`,
+		toName, link, link)
+	return m.send(toEmail, subject, text, html)
+}
+
 func (m *Mailer) send(to, subject, text, html string) error {
 	c := m.cfg
 	from := c.SMTPFrom()

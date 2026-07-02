@@ -8,12 +8,13 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   // When verification is required: after register, or after a login attempt on
   // an unverified account, prompt to check email / resend.
   const [pendingEmail, setPendingEmail] = useState("");
@@ -32,6 +33,11 @@ export default function LoginPage() {
     setResent(false);
     setBusy(true);
     try {
+      if (mode === "forgot") {
+        await api.post("/api/auth/forgot-password", { email });
+        setForgotSent(true);
+        return;
+      }
       if (mode === "login") {
         await api.post("/api/auth/login", { email, password });
         await queryClient.invalidateQueries({ queryKey: ["me"] });
@@ -120,24 +126,61 @@ export default function LoginPage() {
             That verification link is invalid or expired. Sign in to resend.
           </p>
         )}
+        {params.get("reset") === "success" && (
+          <p className="mb-4 rounded-md bg-green-50 px-3 py-2 text-center text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+            Password updated — sign in with your new password.
+          </p>
+        )}
 
-        <form onSubmit={submit} className="space-y-3">
-          <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
-          {mode === "register" && (
-            <input type="text" placeholder="Display name" value={name} onChange={(e) => setName(e.target.value)} className={input} />
-          )}
-          <input type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {mode === "forgot" && forgotSent ? (
+          <p className="rounded-md bg-green-50 px-3 py-2 text-center text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+            If an account exists for {email}, a reset link is on its way.
+          </p>
+        ) : (
+          <form onSubmit={submit} className="space-y-3">
+            <input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
+            {mode === "register" && (
+              <input type="text" placeholder="Display name" value={name} onChange={(e) => setName(e.target.value)} className={input} />
+            )}
+            {mode !== "forgot" && (
+              <input type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
+            )}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {mode === "login" ? "Sign in" : mode === "register" ? "Create account" : "Send reset link"}
+            </button>
+          </form>
+        )}
+
+        {mode === "login" && (
           <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="mt-2 block w-full text-center text-xs text-gray-500 hover:underline dark:text-gray-400"
+            onClick={() => {
+              setMode("forgot");
+              setForgotSent(false);
+              setError("");
+            }}
           >
-            {mode === "login" ? "Sign in" : "Create account"}
+            Forgot password?
           </button>
-        </form>
+        )}
+        {mode === "forgot" && (
+          <button
+            className="mt-3 block w-full text-center text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+            onClick={() => {
+              setMode("login");
+              setForgotSent(false);
+            }}
+          >
+            Back to sign in
+          </button>
+        )}
 
-        {config.data?.oidcEnabled && (
+        {mode !== "forgot" && config.data?.oidcEnabled && (
           <a
             href="/api/auth/oidc/login"
             className="mt-3 block w-full rounded-md border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
@@ -152,6 +195,7 @@ export default function LoginPage() {
           </p>
         )}
 
+        {mode !== "forgot" && (
         <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
           {mode === "login" ? (
             <>
@@ -169,6 +213,7 @@ export default function LoginPage() {
             </>
           )}
         </p>
+        )}
       </div>
     </div>
   );

@@ -88,6 +88,42 @@ func (s *Store) UpdateUser(ctx context.Context, id, name, color string) error {
 	return err
 }
 
+func (s *Store) SetPassword(ctx context.Context, id, passwordHash string) error {
+	_, err := s.Pool.Exec(ctx, `UPDATE users SET password_hash=$2 WHERE id=$1`, id, passwordHash)
+	return err
+}
+
+// DeleteUserSessions logs a user out everywhere (e.g. after a password reset).
+func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
+	_, err := s.Pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, userID)
+	return err
+}
+
+// Password resets
+
+func (s *Store) CreatePasswordReset(ctx context.Context, tokenHash []byte, userID string, expiresAt time.Time) error {
+	if _, err := s.Pool.Exec(ctx, `DELETE FROM password_resets WHERE user_id=$1`, userID); err != nil {
+		return err
+	}
+	_, err := s.Pool.Exec(ctx, `
+		INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1,$2,$3)`,
+		tokenHash, userID, expiresAt)
+	return err
+}
+
+// ConsumePasswordReset validates and deletes a reset token, returning its user.
+func (s *Store) ConsumePasswordReset(ctx context.Context, tokenHash []byte) (string, error) {
+	var userID string
+	err := s.Pool.QueryRow(ctx, `
+		DELETE FROM password_resets
+		WHERE token_hash=$1 AND expires_at > now()
+		RETURNING user_id`, tokenHash).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return userID, err
+}
+
 func (s *Store) DeleteUser(ctx context.Context, id string) error {
 	_, err := s.Pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, id)
 	return err

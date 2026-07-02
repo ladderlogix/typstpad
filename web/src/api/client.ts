@@ -49,6 +49,7 @@ export interface User {
   isAdmin: boolean;
   color: string;
   emailVerified?: boolean;
+  hasPassword?: boolean;
 }
 
 export interface Project {

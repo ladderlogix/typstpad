@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, type User } from "./api/client";
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import EditorPage from "./pages/EditorPage";
 import JoinPage from "./pages/JoinPage";
@@ -33,6 +34,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/" element={<Navigate to="/projects" replace />} />
       <Route
         path="/projects"

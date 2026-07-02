@@ -74,6 +74,10 @@ func (s *Server) Router() http.Handler {
 			r.Get("/oidc/callback", s.handleOIDCCallback)
 			r.Get("/verify-email", s.handleVerifyEmail)
 			r.Post("/resend-verification", s.handleResendVerification)
+			r.Post("/forgot-password", s.handleForgotPassword)
+			r.Post("/reset-password", s.handleResetPassword)
+			r.With(auth.RequireUser).Patch("/me", s.handleUpdateProfile)
+			r.With(auth.RequireUser).Post("/change-password", s.handleChangePassword)
 		})
 		s.mountAuthedRoutes(r)
 
