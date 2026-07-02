@@ -12,12 +12,15 @@ deployed through the pipeline, and verified.
 - [x] Abuse quotas (per-user project count, per-user asset storage)
 
 ## P1 — Production hardening
-- [ ] Compile memory limits (cgroup / ulimit around the typst subprocess)
+- [x] Compile memory limits — typst subprocess wrapped with `ulimit -v`
+      (COMPILE_MAX_MEMORY_MB=2048); verified normal compiles unaffected
 - [ ] Automated tests (collab merge, suggestions accept/reject, version restore) + CI gate
       that runs them before the deploy hook proceeds
-- [ ] Deeper deploy health check (exercise a real endpoint, not just DB ping) with rollback
+- [x] Deeper deploy health check — deploy hook checks `/api/auth/config` (routing + settings
+      + JSON), not just the DB ping, before considering the deploy healthy (else rolls back)
 - [ ] Observability: metrics, error tracking, uptime alerting
-- [ ] Admin server stats (active users, project/doc count, disk usage)
+- [x] Admin server stats — users / projects / documents / templates / teams / active sessions
+      / disk usage in the admin panel
 
 ## P2 — Collaboration UX
 - [ ] Notifications: email on comment / @mention / project shared-with-you; in-app feed
