@@ -19,6 +19,7 @@ var templatesFS embed.FS
 type templateMeta struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Category    string `json:"category,omitempty"`
 	MainPath    string `json:"mainPath,omitempty"`
 }
 
@@ -58,14 +59,16 @@ func seedOne(ctx context.Context, st *store.Store, ownerID, slug string) error {
 		return err
 	}
 
-	var exists bool
-	if err := st.Pool.QueryRow(ctx, `
-		SELECT EXISTS(SELECT 1 FROM projects WHERE is_template AND name=$1 AND deleted_at IS NULL)`,
-		meta.Name).Scan(&exists); err != nil {
-		return err
-	}
-	if exists {
-		return nil
+	metaJSON, _ := json.Marshal(map[string]string{"description": meta.Description, "category": meta.Category, "builtin": slug})
+
+	var existingID string
+	err = st.Pool.QueryRow(ctx, `
+		SELECT id FROM projects WHERE is_template AND name=$1 AND deleted_at IS NULL LIMIT 1`,
+		meta.Name).Scan(&existingID)
+	if err == nil {
+		// Already seeded — just refresh its metadata (e.g. add category).
+		_, uerr := st.Pool.Exec(ctx, `UPDATE projects SET template_meta=$2 WHERE id=$1`, existingID, metaJSON)
+		return uerr
 	}
 
 	p, err := st.CreateProject(ctx, meta.Name, meta.Description, ownerID)
@@ -92,7 +95,6 @@ func seedOne(ctx context.Context, st *store.Store, ownerID, slug string) error {
 	if err != nil {
 		return err
 	}
-	metaJSON, _ := json.Marshal(map[string]string{"description": meta.Description, "builtin": slug})
 	if err := st.SetProjectTemplate(ctx, p.ID, true, metaJSON); err != nil {
 		return err
 	}

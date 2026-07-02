@@ -20,6 +20,7 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.With(auth.RequireScope("write")).Patch("/", s.handleUpdateProject)
 			r.With(auth.RequireScope("write")).Delete("/", s.handleDeleteProject)
 			r.With(auth.RequireScope("write")).Post("/duplicate", s.handleDuplicateProject)
+			r.Get("/collections", s.handleProjectCollections)
 			r.Get("/events", s.handleProjectEvents)
 
 			// Files
@@ -77,10 +78,22 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 		r.Get("/versions/{versionID}", s.handleGetVersion)
 
 		r.Get("/templates", s.handleListTemplates)
+		r.Get("/templates/{templateID}/thumbnail.png", s.handleTemplateThumbnail)
 		r.With(auth.RequireScope("write")).Post("/templates/{templateID}/use", s.handleUseTemplate)
+		r.With(auth.RequireScope("write")).Delete("/templates/{templateID}", s.handleDeleteTemplate)
 
 		r.With(auth.RequireScope("write")).Post("/links/{token}/join", s.handleJoinLink)
 		r.With(auth.RequireScope("write")).Delete("/links/{linkID}", s.handleRevokeLink)
+
+		// Collections (personal project groups)
+		r.Get("/collections", s.handleListCollections)
+		r.With(auth.RequireScope("write")).Post("/collections", s.handleCreateCollection)
+		r.Route("/collections/{collectionID}", func(r chi.Router) {
+			r.With(auth.RequireScope("write")).Patch("/", s.handleRenameCollection)
+			r.With(auth.RequireScope("write")).Delete("/", s.handleDeleteCollection)
+			r.With(auth.RequireScope("write")).Post("/projects", s.handleAddProjectToCollection)
+			r.With(auth.RequireScope("write")).Delete("/projects/{projectID}", s.handleRemoveProjectFromCollection)
+		})
 
 		// Teams
 		r.Get("/teams", s.handleListTeams)

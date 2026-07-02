@@ -58,10 +58,18 @@ export interface Project {
   ownerId: string;
   mainPath: string;
   isTemplate: boolean;
-  templateMeta?: { description?: string };
+  templateMeta?: { description?: string; category?: string };
   createdAt: string;
   updatedAt: string;
   role?: "owner" | "editor" | "suggester" | "viewer";
+}
+
+export interface Collection {
+  id: string;
+  ownerId: string;
+  name: string;
+  createdAt: string;
+  count: number;
 }
 
 export interface FileEntry {

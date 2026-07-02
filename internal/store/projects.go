@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
+
+func itoa(n int) string { return strconv.Itoa(n) }
 
 type Project struct {
 	ID           string          `json:"id"`
@@ -95,7 +98,7 @@ func (s *Store) ProjectByID(ctx context.Context, projectID string) (*Project, er
 		SELECT `+projectCols+` FROM projects p WHERE p.id = $1 AND p.deleted_at IS NULL`, projectID), false)
 }
 
-func (s *Store) ListProjectsForUser(ctx context.Context, userID string, query string) ([]*Project, error) {
+func (s *Store) ListProjectsForUser(ctx context.Context, userID, query, collectionID string) ([]*Project, error) {
 	// The LATERAL best-role subquery returns no rows for projects the user
 	// can't access, so the inner join naturally filters them out.
 	sql := `
@@ -107,8 +110,14 @@ func (s *Store) ListProjectsForUser(ctx context.Context, userID string, query st
 		WHERE p.deleted_at IS NULL AND p.is_template = false`
 	args := []any{userID}
 	if query != "" {
-		sql += ` AND p.name ILIKE '%' || $2 || '%'`
 		args = append(args, query)
+		sql += ` AND p.name ILIKE '%' || $` + itoa(len(args)) + ` || '%'`
+	}
+	if collectionID != "" {
+		args = append(args, collectionID)
+		sql += ` AND EXISTS (SELECT 1 FROM project_collections pc
+			JOIN collections c ON c.id = pc.collection_id AND c.owner_id = $1
+			WHERE pc.project_id = p.id AND pc.collection_id = $` + itoa(len(args)) + `)`
 	}
 	sql += ` ORDER BY p.updated_at DESC`
 	rows, err := s.Pool.Query(ctx, sql, args...)

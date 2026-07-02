@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -139,6 +140,61 @@ func (c *Compiler) Compile(ctx context.Context, mainPath string, files []JobFile
 		})
 	}
 	return res, nil
+}
+
+// Thumbnail compiles the main file's first page to PNG (for template
+// previews). Returns nil bytes without error when compilation fails, so
+// callers can fall back to a placeholder.
+func (c *Compiler) Thumbnail(ctx context.Context, mainPath string, files []JobFile, ppi int) ([]byte, error) {
+	select {
+	case c.sem <- struct{}{}:
+		defer func() { <-c.sem }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	jobDir, err := os.MkdirTemp(c.WorkDir, "thumb-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(jobDir)
+
+	for _, f := range files {
+		dst := filepath.Join(jobDir, filepath.FromSlash(f.Path))
+		if !strings.HasPrefix(dst, jobDir+string(os.PathSeparator)) {
+			return nil, fmt.Errorf("path escapes job dir: %s", f.Path)
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(dst, f.Data, 0o644); err != nil {
+			return nil, err
+		}
+	}
+	if ppi <= 0 {
+		ppi = 72
+	}
+	// The {p} placeholder yields one PNG per page (thumb1.png, thumb2.png…).
+	outPattern := filepath.Join(jobDir, "thumb{p}.png")
+	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, c.TypstBin, "compile",
+		"--root", jobDir, "--ppi", strconv.Itoa(ppi),
+		filepath.Join(jobDir, filepath.FromSlash(mainPath)), outPattern)
+	cmd.Env = append(os.Environ(), "TYPST_PACKAGE_CACHE_PATH="+c.CacheDir)
+	if c.FontDirs != "" {
+		cmd.Env = append(cmd.Env, "TYPST_FONT_PATHS="+c.FontDirs)
+	}
+	cmd.WaitDelay = 2 * time.Second
+	if err := cmd.Run(); err != nil {
+		return nil, nil // compile failed; caller uses a placeholder
+	}
+	// Read the first page (lowest-numbered thumb*.png).
+	matches, _ := filepath.Glob(filepath.Join(jobDir, "thumb*.png"))
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	sort.Strings(matches)
+	return os.ReadFile(matches[0])
 }
 
 func parseDiagnostics(stderr, jobDir string) []Diagnostic {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Project } from "../api/client";
+import { api, type Collection, type Project } from "../api/client";
 import { useMe } from "../App";
 import { ThemeToggle } from "../theme";
 
@@ -11,14 +11,22 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [activeCollection, setActiveCollection] = useState<string>(""); // "" = all
 
   const projects = useQuery<Project[]>({
-    queryKey: ["projects", query],
-    queryFn: () => api.get<Project[]>(`/api/projects?q=${encodeURIComponent(query)}`),
+    queryKey: ["projects", query, activeCollection],
+    queryFn: () =>
+      api.get<Project[]>(
+        `/api/projects?q=${encodeURIComponent(query)}${activeCollection ? `&collection=${activeCollection}` : ""}`
+      ),
   });
   const templates = useQuery<Project[]>({
     queryKey: ["templates"],
     queryFn: () => api.get<Project[]>("/api/templates"),
+  });
+  const collections = useQuery<Collection[]>({
+    queryKey: ["collections"],
+    queryFn: () => api.get<Collection[]>("/api/collections"),
   });
 
   const remove = useMutation({
@@ -29,6 +37,18 @@ export default function ProjectsPage() {
     mutationFn: (id: string) => api.post<Project>(`/api/projects/${id}/duplicate`, {}),
     onSuccess: (p) => navigate(`/p/${p.id}`),
   });
+  const newCollection = useMutation({
+    mutationFn: (name: string) => api.post<Collection>("/api/collections", { name }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["collections"] }),
+  });
+  const deleteCollection = useMutation({
+    mutationFn: (id: string) => api.del(`/api/collections/${id}`),
+    onSuccess: () => {
+      setActiveCollection("");
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+    },
+  });
+  const [projectMenu, setProjectMenu] = useState<Project | null>(null);
 
   async function logout() {
     await api.post("/api/auth/logout");
@@ -43,6 +63,9 @@ export default function ProjectsPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">TypstPad</h1>
           <div className="flex items-center gap-4 text-sm">
             <ThemeToggle className="text-base" />
+            <Link to="/templates" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100">
+              Templates
+            </Link>
             <Link to="/teams" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-gray-100">
               Teams
             </Link>
@@ -68,7 +91,54 @@ export default function ProjectsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto grid max-w-6xl grid-cols-[14rem_1fr] gap-6 px-6 py-8">
+        <aside>
+          <button
+            onClick={() => setActiveCollection("")}
+            className={`mb-1 w-full rounded-md px-3 py-1.5 text-left text-sm ${
+              activeCollection === ""
+                ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+            }`}
+          >
+            All projects
+          </button>
+          <p className="mb-1 mt-4 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Collections</p>
+          {collections.data?.map((c) => (
+            <div key={c.id} className="group flex items-center">
+              <button
+                onClick={() => setActiveCollection(c.id)}
+                className={`flex-1 truncate rounded-md px-3 py-1.5 text-left text-sm ${
+                  activeCollection === c.id
+                    ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                    : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                }`}
+              >
+                {c.name} <span className="text-xs text-gray-400">{c.count}</span>
+              </button>
+              <button
+                className="hidden px-1 text-xs text-gray-400 hover:text-red-600 group-hover:block"
+                title="Delete collection"
+                onClick={() => {
+                  if (confirm(`Delete collection "${c.name}"? (projects are not deleted)`)) deleteCollection.mutate(c.id);
+                }}
+              >
+                x
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => {
+              const name = prompt("New collection name:");
+              if (name) newCollection.mutate(name);
+            }}
+            className="mt-1 w-full rounded-md px-3 py-1.5 text-left text-sm text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            + New collection
+          </button>
+        </aside>
+
+        <div>
         <div className="mb-6 flex items-center justify-between gap-4">
           <input
             type="search"
@@ -99,7 +169,10 @@ export default function ProjectsPage() {
                 </p>
               </Link>
               <div className="mt-2 flex gap-3 text-xs text-gray-400 opacity-0 transition group-hover:opacity-100">
-                <button className="hover:text-gray-700 dark:text-gray-300" onClick={() => duplicate.mutate(p.id)}>
+                <button className="hover:text-gray-700 dark:hover:text-gray-200" onClick={() => setProjectMenu(p)}>
+                  Organize
+                </button>
+                <button className="hover:text-gray-700 dark:hover:text-gray-200" onClick={() => duplicate.mutate(p.id)}>
                   Duplicate
                 </button>
                 {p.role === "owner" && (
@@ -121,11 +194,102 @@ export default function ProjectsPage() {
             </p>
           )}
         </div>
+        </div>
       </main>
 
       {showNew && (
         <NewProjectDialog templates={templates.data ?? []} onClose={() => setShowNew(false)} />
       )}
+      {projectMenu && (
+        <OrganizeDialog project={projectMenu} collections={collections.data ?? []} onClose={() => setProjectMenu(null)} />
+      )}
+    </div>
+  );
+}
+
+function OrganizeDialog({
+  project,
+  collections,
+  onClose,
+}: {
+  project: Project;
+  collections: Collection[];
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const membership = useQuery<string[]>({
+    queryKey: ["projectCollections", project.id],
+    queryFn: () => api.get<string[]>(`/api/projects/${project.id}/collections`),
+  });
+  const toggle = useMutation({
+    mutationFn: ({ collectionId, member }: { collectionId: string; member: boolean }) =>
+      member
+        ? api.del(`/api/collections/${collectionId}/projects/${project.id}`)
+        : api.post(`/api/collections/${collectionId}/projects`, { projectId: project.id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectCollections", project.id] });
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+  const publish = useMutation({
+    mutationFn: (v: { name: string; description: string; category: string }) =>
+      api.post(`/api/projects/${project.id}/publish-template`, v),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["templates"] });
+      alert("Published to the template gallery.");
+      onClose();
+    },
+    onError: (e: Error) => alert(e.message),
+  });
+  const inSet = new Set(membership.data ?? []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
+        <h2 className="mb-1 text-lg font-semibold text-gray-900 dark:text-gray-100">Organize</h2>
+        <p className="mb-4 truncate text-sm text-gray-500 dark:text-gray-400">{project.name}</p>
+
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Collections</p>
+        <div className="mb-4 space-y-1">
+          {collections.length === 0 && (
+            <p className="text-sm text-gray-400">No collections yet — create one from the sidebar.</p>
+          )}
+          {collections.map((c) => (
+            <label key={c.id} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={inSet.has(c.id)}
+                onChange={() => toggle.mutate({ collectionId: c.id, member: inSet.has(c.id) })}
+              />
+              {c.name}
+            </label>
+          ))}
+        </div>
+
+        {project.role === "owner" && (
+          <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
+            <button
+              onClick={() => {
+                const name = prompt("Template name:", project.name);
+                if (name === null) return;
+                const description = prompt("Short description:", project.description) ?? "";
+                const category = prompt("Category (e.g. Academic, Business):", "Community") ?? "Community";
+                publish.mutate({ name: name || project.name, description, category });
+              }}
+              className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+            >
+              Publish as template →
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4 flex justify-end">
+          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
+            Done
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

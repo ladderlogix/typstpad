@@ -8,6 +8,7 @@ import JoinPage from "./pages/JoinPage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminPage from "./pages/AdminPage";
 import TeamsPage from "./pages/TeamsPage";
+import TemplatesPage from "./pages/TemplatesPage";
 
 export function useMe() {
   return useQuery<User>({
@@ -62,6 +63,14 @@ export default function App() {
         element={
           <RequireAuth>
             <TeamsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/templates"
+        element={
+          <RequireAuth>
+            <TemplatesPage />
           </RequireAuth>
         }
       />

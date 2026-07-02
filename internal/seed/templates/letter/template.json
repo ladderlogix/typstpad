@@ -1,4 +1,5 @@
 {
   "name": "Letter",
-  "description": "A formal letter with sender/recipient blocks and signature."
+  "description": "A formal letter with sender/recipient blocks and signature.",
+  "category": "Business"
 }

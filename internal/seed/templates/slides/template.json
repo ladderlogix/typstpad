@@ -1,4 +1,5 @@
 {
   "name": "Slides",
-  "description": "A 16:9 slide deck using the polylux package from Typst Universe."
+  "description": "A 16:9 slide deck using the polylux package from Typst Universe.",
+  "category": "Presentation"
 }

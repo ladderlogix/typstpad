@@ -1,8 +1,13 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -83,6 +88,43 @@ func (s *Server) handleExportPDF(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
 	_, _ = w.Write(res.PDF)
+}
+
+// handleTemplateThumbnail renders a template's first page to PNG, cached on
+// disk by the template's id + updated_at so it only recompiles when changed.
+func (s *Server) handleTemplateThumbnail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "templateID")
+	p, err := s.Store.ProjectByID(r.Context(), id)
+	if err != nil || !p.IsTemplate {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	sum := sha256.Sum256([]byte(id + p.UpdatedAt.Format(time.RFC3339Nano)))
+	cachePath := filepath.Join(s.Cfg.DataDir, "thumb-cache", hex.EncodeToString(sum[:8])+".png")
+	if data, err := os.ReadFile(cachePath); err == nil {
+		serveThumb(w, data)
+		return
+	}
+	jobFiles, err := s.materialize(r, id)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	png, err := s.Compiler.Thumbnail(r.Context(), p.MainPath, jobFiles, 96)
+	if err != nil || png == nil {
+		// No image: let the client fall back to its placeholder icon.
+		writeErr(w, http.StatusNoContent, "no thumbnail")
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(cachePath), 0o755)
+	_ = os.WriteFile(cachePath, png, 0o644)
+	serveThumb(w, png)
+}
+
+func serveThumb(w http.ResponseWriter, data []byte) {
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_, _ = w.Write(data)
 }
 
 // handlePackageProxy proxies Typst Universe package downloads for the

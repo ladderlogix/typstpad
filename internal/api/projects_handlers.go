@@ -21,7 +21,7 @@ see the #link("https://typst.app/docs/")[documentation] for syntax.
 
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFrom(r.Context())
-	projects, err := s.Store.ListProjectsForUser(r.Context(), u.ID, r.URL.Query().Get("q"))
+	projects, err := s.Store.ListProjectsForUser(r.Context(), u.ID, r.URL.Query().Get("q"), r.URL.Query().Get("collection"))
 	if err != nil {
 		fail(w, err)
 		return
@@ -239,10 +239,14 @@ func (s *Server) handlePublishTemplate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		Category    string `json:"category"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 	if req.Name == "" {
 		req.Name = p.Name
+	}
+	if req.Category == "" {
+		req.Category = "Community"
 	}
 	// Publishing copies the project into a frozen template owned by the caller.
 	tpl, err := s.copyProject(r, p.ID, req.Name, u.ID, false)
@@ -250,11 +254,33 @@ func (s *Server) handlePublishTemplate(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	meta, _ := json.Marshal(map[string]string{"description": req.Description, "publishedFrom": p.ID})
+	meta, _ := json.Marshal(map[string]string{
+		"description": req.Description, "category": req.Category, "publishedFrom": p.ID,
+	})
 	if err := s.Store.SetProjectTemplate(r.Context(), tpl.ID, true, meta); err != nil {
 		fail(w, err)
 		return
 	}
 	tpl.IsTemplate = true
 	writeJSON(w, http.StatusCreated, tpl)
+}
+
+// handleDeleteTemplate unpublishes/removes a template the caller owns (admins
+// can remove any).
+func (s *Server) handleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFrom(r.Context())
+	tpl, err := s.Store.ProjectByID(r.Context(), chi.URLParam(r, "templateID"))
+	if err != nil || !tpl.IsTemplate {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	if tpl.OwnerID != u.ID && !u.IsAdmin {
+		writeErr(w, http.StatusForbidden, "only the template owner or an admin can remove it")
+		return
+	}
+	if err := s.Store.SoftDeleteProject(r.Context(), tpl.ID); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

@@ -92,6 +92,84 @@ func NewServer(c *RESTClient) *mcp.Server {
 		return jsonResult(out)
 	})
 
+	type createProjectArgs struct {
+		Name       string `json:"name" jsonschema:"the new project's name"`
+		TemplateID string `json:"template_id,omitempty" jsonschema:"optional template id to start from (see list_templates)"`
+	}
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "create_project",
+		Description: "Create a new Typst project (document), optionally from a template. Returns the new project including its id.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args createProjectArgs) (*mcp.CallToolResult, any, error) {
+		var out json.RawMessage
+		if err := c.Do(ctx, "POST", "/api/projects",
+			map[string]string{"name": args.Name, "templateId": args.TemplateID}, &out); err != nil {
+			return nil, nil, err
+		}
+		return jsonResult(out)
+	})
+
+	type createFileArgs struct {
+		ProjectID string `json:"project_id" jsonschema:"the project id"`
+		Path      string `json:"path" jsonschema:"the new file path, e.g. chapter1.typ"`
+		Content   string `json:"content,omitempty" jsonschema:"initial file content"`
+	}
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "create_file",
+		Description: "Add a new text file to a project. Requires editor access.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args createFileArgs) (*mcp.CallToolResult, any, error) {
+		var out json.RawMessage
+		if err := c.Do(ctx, "POST", "/api/projects/"+args.ProjectID+"/files",
+			map[string]string{"path": args.Path, "content": args.Content}, &out); err != nil {
+			return nil, nil, err
+		}
+		return jsonResult(out)
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "list_templates",
+		Description: "List available templates (built-in and community) with ids, names, categories and descriptions.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		var out json.RawMessage
+		if err := c.Do(ctx, "GET", "/api/templates", nil, &out); err != nil {
+			return nil, nil, err
+		}
+		return jsonResult(out)
+	})
+
+	type useTemplateArgs struct {
+		TemplateID string `json:"template_id" jsonschema:"the template id (from list_templates)"`
+		Name       string `json:"name" jsonschema:"name for the new project"`
+	}
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "create_project_from_template",
+		Description: "Create a new project from a template. Returns the new project including its id.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args useTemplateArgs) (*mcp.CallToolResult, any, error) {
+		var out json.RawMessage
+		if err := c.Do(ctx, "POST", "/api/templates/"+args.TemplateID+"/use",
+			map[string]string{"name": args.Name}, &out); err != nil {
+			return nil, nil, err
+		}
+		return jsonResult(out)
+	})
+
+	type publishTemplateArgs struct {
+		ProjectID   string `json:"project_id" jsonschema:"the project to publish as a template"`
+		Name        string `json:"name,omitempty" jsonschema:"template name (defaults to the project name)"`
+		Description string `json:"description,omitempty" jsonschema:"short description shown in the gallery"`
+		Category    string `json:"category,omitempty" jsonschema:"category, e.g. Academic, Business, Personal"`
+	}
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "publish_template",
+		Description: "Publish a project as a reusable template in the gallery (a frozen copy). Requires owner access.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args publishTemplateArgs) (*mcp.CallToolResult, any, error) {
+		var out json.RawMessage
+		if err := c.Do(ctx, "POST", "/api/projects/"+args.ProjectID+"/publish-template",
+			map[string]string{"name": args.Name, "description": args.Description, "category": args.Category}, &out); err != nil {
+			return nil, nil, err
+		}
+		return jsonResult(out)
+	})
+
 	type projectArgs struct {
 		ProjectID string `json:"project_id" jsonschema:"the project id"`
 	}

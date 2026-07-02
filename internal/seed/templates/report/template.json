@@ -1,4 +1,5 @@
 {
   "name": "Report",
-  "description": "A structured report with title page, table of contents, headings and figures."
+  "description": "A structured report with title page, table of contents, headings and figures.",
+  "category": "Academic"
 }
