@@ -30,6 +30,7 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 		// Projects
 		r.Get("/projects", s.handleListProjects)
 		r.With(auth.RequireScope("write")).Post("/projects", s.handleCreateProject)
+		r.With(auth.RequireScope("write")).Post("/projects/import", s.handleImportZip)
 		r.Get("/search", s.handleSearch)
 		r.Route("/projects/{projectID}", func(r chi.Router) {
 			r.Get("/", s.handleGetProject)
@@ -66,6 +67,7 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			// Compile / export
 			r.With(auth.RequireScope("compile"), compileLimit).Post("/compile", s.handleCompile)
 			r.With(compileLimit).Get("/export/pdf", s.handleExportPDF)
+			r.Get("/export.zip", s.handleExportZip)
 
 			// Templates
 			r.With(auth.RequireScope("write")).Post("/publish-template", s.handlePublishTemplate)

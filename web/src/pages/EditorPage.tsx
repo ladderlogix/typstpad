@@ -14,6 +14,8 @@ import { ShareDialog, HistoryDialog, SuggestDialog } from "../editor/dialogs";
 import { TypstClient, type WorkerDiagnostic } from "../editor/typst/compilerClient";
 import { resolveAnchor } from "../editor/annotations";
 import { createSuggestMode, type SuggestModeController } from "../editor/suggestMode";
+import FormatToolbar from "../editor/FormatToolbar";
+import { parseOutline, wordStats } from "../editor/format";
 import { ThemeToggle } from "../theme";
 
 interface CollabSession {
@@ -259,10 +261,15 @@ export default function EditorPage({ projectId }: { projectId: string }) {
       contentsRef.current.set(activeFile.path, text);
       typstRef.current?.sync({ [activeFile.path]: text });
       scheduleCompile();
+      if (docTextTimer.current) window.clearTimeout(docTextTimer.current);
+      docTextTimer.current = window.setTimeout(() => setDocText(text), 300);
     };
     push();
     session.ytext.observe(push);
-    return () => session.ytext.unobserve(push);
+    return () => {
+      session.ytext.unobserve(push);
+      if (docTextTimer.current) window.clearTimeout(docTextTimer.current);
+    };
   }, [session, synced, activeFile?.path, scheduleCompile]);
 
   // ---- scroll sync (approximate: document-fraction based) ----
@@ -293,8 +300,14 @@ export default function EditorPage({ projectId }: { projectId: string }) {
   const [showShare, setShowShare] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [suggestSel, setSuggestSel] = useState<{ from: number; to: number; text: string } | null>(null);
-  const [sidePanel, setSidePanel] = useState<"suggestions" | "comments" | null>(null);
+  const [sidePanel, setSidePanel] = useState<"suggestions" | "comments" | "outline" | null>(null);
   const [showErrors, setShowErrors] = useState(true);
+
+  // Live text of the active file (debounced) for the outline + word count.
+  const [docText, setDocText] = useState("");
+  const docTextTimer = useRef<number | null>(null);
+  const outline = useMemo(() => parseOutline(docText), [docText]);
+  const stats = useMemo(() => wordStats(docText), [docText]);
 
   function currentSelection() {
     const view = viewRef.current;
@@ -459,8 +472,24 @@ export default function EditorPage({ projectId }: { projectId: string }) {
               ? ` (${comments.data.filter((c) => c.status === "open" && !c.parentId).length})`
               : ""}
           </ToolbarButton>
+          {activeFile?.kind === "text" && (
+            <ToolbarButton
+              onClick={() => setSidePanel(sidePanel === "outline" ? null : "outline")}
+              active={sidePanel === "outline"}
+              title="Document outline"
+            >
+              Outline
+            </ToolbarButton>
+          )}
           <ToolbarButton onClick={() => setShowHistory(true)}>History</ToolbarButton>
           <ToolbarButton onClick={() => setShowShare(true)}>Share</ToolbarButton>
+          <a
+            href={`/api/projects/${projectId}/export.zip`}
+            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            title="Download the whole project (source + assets) as a .zip"
+          >
+            Export ZIP
+          </a>
           <ThemeToggle className="px-1 text-base" />
           <button
             onClick={exportPDF}
@@ -485,6 +514,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col border-r border-gray-200 dark:border-gray-800">
+          {canEdit && activeFile?.kind === "text" && <FormatToolbar getView={() => viewRef.current} />}
           {session && synced && activeFile ? (
             <CodeEditor
               key={session.fileId}
@@ -508,20 +538,30 @@ export default function EditorPage({ projectId }: { projectId: string }) {
             </div>
           )}
 
-          {/* diagnostics */}
+          {/* diagnostics + status */}
           <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-            <button
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-              onClick={() => setShowErrors(!showErrors)}
-            >
-              <span className={errorCount ? "font-medium text-red-600" : "text-green-600"}>
-                {errorCount ? `● ${errorCount} error${errorCount > 1 ? "s" : ""}` : "● compiles cleanly"}
-              </span>
-              {diagnostics.length > errorCount && (
-                <span className="text-amber-600">{diagnostics.length - errorCount} warnings</span>
+            <div className="flex items-center">
+              <button
+                className="flex flex-1 items-center gap-2 px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                onClick={() => setShowErrors(!showErrors)}
+              >
+                <span className={errorCount ? "font-medium text-red-600" : "text-green-600"}>
+                  {errorCount ? `● ${errorCount} error${errorCount > 1 ? "s" : ""}` : "● compiles cleanly"}
+                </span>
+                {diagnostics.length > errorCount && (
+                  <span className="text-amber-600">{diagnostics.length - errorCount} warnings</span>
+                )}
+                <span className="ml-auto">{showErrors ? "▾" : "▸"}</span>
+              </button>
+              {activeFile?.kind === "text" && (
+                <span
+                  className="shrink-0 border-l border-gray-200 dark:border-gray-800 px-3 py-1.5 text-xs tabular-nums text-gray-400"
+                  title="Word and character count"
+                >
+                  {stats.words.toLocaleString()} words · {stats.chars.toLocaleString()} chars
+                </span>
               )}
-              <span className="ml-auto">{showErrors ? "▾" : "▸"}</span>
-            </button>
+            </div>
             {showErrors && diagnostics.length > 0 && (
               <ul className="max-h-32 overflow-y-auto border-t border-gray-100 dark:border-gray-800 text-xs">
                 {diagnostics.map((d, i) => (
@@ -564,7 +604,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
         {sidePanel && (
           <div className="flex w-80 shrink-0 flex-col border-l border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
             <div className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              {sidePanel === "suggestions" ? "Suggestions" : "Comments"}
+              {sidePanel === "suggestions" ? "Suggestions" : sidePanel === "comments" ? "Comments" : "Outline"}
             </div>
             {sidePanel === "suggestions" ? (
               <SuggestionsPanel
@@ -574,7 +614,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
                 meId={me.data?.id}
                 onJump={(s) => session && jumpTo(resolveAnchor(session.doc, s.anchorStart))}
               />
-            ) : (
+            ) : sidePanel === "comments" ? (
               <CommentsPanel
                 projectId={projectId}
                 comments={comments.data ?? []}
@@ -582,6 +622,26 @@ export default function EditorPage({ projectId }: { projectId: string }) {
                 meId={me.data?.id}
                 onJump={(c) => session && c.anchorStart && jumpTo(resolveAnchor(session.doc, c.anchorStart))}
               />
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto py-1">
+                {outline.length === 0 ? (
+                  <p className="px-3 py-4 text-xs text-gray-400">
+                    No headings yet. Start a line with <code>=</code> to add one.
+                  </p>
+                ) : (
+                  outline.map((h, i) => (
+                    <button
+                      key={i}
+                      onClick={() => jumpTo(h.from)}
+                      className="block w-full truncate px-3 py-1 text-left text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      style={{ paddingLeft: `${0.75 + (h.level - 1) * 0.85}rem` }}
+                      title={h.title}
+                    >
+                      {h.title}
+                    </button>
+                  ))
+                )}
+              </div>
             )}
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Collection, type Project } from "../api/client";
@@ -49,6 +49,17 @@ export default function ProjectsPage() {
     },
   });
   const [projectMenu, setProjectMenu] = useState<Project | null>(null);
+
+  const importInput = useRef<HTMLInputElement>(null);
+  const importProject = useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return api.post<Project>("/api/projects/import", form);
+    },
+    onSuccess: (p) => navigate(`/p/${p.id}`),
+    onError: (e: Error) => alert(`Import failed: ${e.message}`),
+  });
 
   async function logout() {
     await api.post("/api/auth/logout");
@@ -147,12 +158,33 @@ export default function ProjectsPage() {
             onChange={(e) => setQuery(e.target.value)}
             className="w-64 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
           />
-          <button
-            onClick={() => setShowNew(true)}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            New project
-          </button>
+          <div className="flex items-center gap-2">
+            <input
+              ref={importInput}
+              type="file"
+              accept=".zip,application/zip"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importProject.mutate(f);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => importInput.current?.click()}
+              disabled={importProject.isPending}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              title="Import a project from a .zip of Typst source and assets"
+            >
+              {importProject.isPending ? "Importing…" : "Import ZIP"}
+            </button>
+            <button
+              onClick={() => setShowNew(true)}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              New project
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

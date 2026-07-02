@@ -28,9 +28,11 @@ deployed through the pipeline, and verified.
 ## P2 — Collaboration UX
 - [ ] Notifications: email on comment / @mention / project shared-with-you; in-app feed
 - [ ] Real Typst language support via tinymist LSP (hover, completion, diagnostics)
-- [ ] Editor niceties: formatting/symbol toolbar, document outline panel,
-      find-and-replace across files, word count
-- [ ] Export/import: download source or whole project as a zip; import a Typst project
+- [x] Editor niceties: formatting/symbol toolbar (bold/italic/headings/lists/link/math/
+      figure/table/pagebreak), document outline panel (click-to-jump), live word/char count.
+      TODO: find-and-replace across files (CM6 has single-file search built in).
+- [x] Export/import: download the whole project (source + assets) as a zip; import a
+      Typst project zip (nested-dir stripping, binary-asset detection, main-file autodetect)
 - [ ] Public read-only compiled share link (view the PDF without an account)
 
 ## P3 — Nice-to-haves
