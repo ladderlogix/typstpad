@@ -74,3 +74,11 @@ body {
 .dark .tp-comment-range {
   background: color-mix(in srgb, #eab308 32%, transparent);
 }
+
+/* Typst function hover docs. */
+.tp-hover {
+  max-width: 22rem;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}

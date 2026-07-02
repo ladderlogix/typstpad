@@ -32,7 +32,11 @@ deployed through the pipeline, and verified.
 - [x] Notifications: in-app feed with a bell + unread badge (comment / @mention / project
       shared-with-you); email via SES on @mention and share. @handles match by email,
       email local-part, or name.
-- [ ] Real Typst language support via tinymist LSP (hover, completion, diagnostics)
+- [x] Typst language support in the editor — snippet completions (figure/image/table/
+      grid/link/cite/for/if… insert templates with tab stops), stdlib + math-symbol
+      completions, and hover tooltips documenting common functions. Diagnostics already
+      come from the in-browser WASM compiler (error panel + squiggles). A full tinymist
+      LSP (go-to-def, workspace-wide analysis) remains a possible future upgrade.
 - [x] Editor niceties: formatting/symbol toolbar (bold/italic/headings/lists/link/math/
       figure/table/pagebreak), document outline panel (click-to-jump), live word/char count.
       TODO: find-and-replace across files (CM6 has single-file search built in).
