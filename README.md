@@ -69,7 +69,18 @@ Set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` in `.env` and register
 `${PUBLIC_URL}/api/auth/oidc/callback` as the redirect URI with your identity provider.
 Accounts are linked by verified email when one already exists.
 
+## Admin settings
+
+Admins get a **Server settings** panel (Admin page) to manage, without editing env or
+restarting: registration on/off, the sign-up allowlist, SMTP / email verification, and
+OIDC single sign-on. These DB-backed values override the env vars below (env stays as the
+bootstrap fallback). Secrets (SMTP password, OIDC client secret) are write-only in the UI —
+shown as "set" and only changed when you enter a new value. The same page manages users
+(promote/demote admin, delete, verified badges).
+
 ## Restricting sign-ups & email verification
+
+Manage these in the admin panel, or via env (env = fallback when a DB value isn't set):
 
 - **Allowlist:** set `SIGNUP_ALLOWLIST` to a comma/space separated list of domains
   (`ics.red`) and/or exact addresses (`me@ics.red`). Empty = anyone may register.
