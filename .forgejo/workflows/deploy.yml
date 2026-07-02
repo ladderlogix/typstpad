@@ -1,0 +1,25 @@
+name: deploy
+# Push-to-deploy: on every push to main, trigger a redeploy on the same host
+# (public-tools). The job SSHes to the host's deploy hook using a scoped,
+# command-restricted key (secrets.DEPLOY_SSH_KEY); the hook pulls latest main,
+# rebuilds the compose stack, runs a health check and rolls back on failure.
+# Postgres data (pgdata volume) and /opt/typstpad/.env are preserved.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy on host
+        run: |
+          apt-get update -qq && apt-get install -y -qq openssh-client >/dev/null
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # The host key runs a forced command (deploy-hook.sh); args are ignored.
+          ssh -i ~/.ssh/deploy_key -p 2200 \
+            -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=15 -o ServerAliveInterval=30 \
+            root@172.17.0.1 deploy
