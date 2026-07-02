@@ -119,6 +119,21 @@ export interface Member {
   role: string;
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+  role?: "admin" | "member";
+  memberCount?: number;
+}
+
+export interface ProjectTeam {
+  teamId: string;
+  teamName: string;
+  role: string;
+}
+
 export interface ShareLink {
   id: string;
   projectId: string;

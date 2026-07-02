@@ -41,6 +41,9 @@ export default function ProjectsPage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-bold text-gray-900">TypstPad</h1>
           <div className="flex items-center gap-4 text-sm">
+            <Link to="/teams" className="text-gray-500 hover:text-gray-900">
+              Teams
+            </Link>
             {me.data?.isAdmin && (
               <Link to="/admin" className="text-gray-500 hover:text-gray-900">
                 Admin

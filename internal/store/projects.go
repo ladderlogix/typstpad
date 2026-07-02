@@ -64,12 +64,30 @@ func (s *Store) CreateProject(ctx context.Context, name, description, ownerID st
 	return p, nil
 }
 
-// ProjectForUser returns the project and the user's role ("" if no access).
+// roleRankSQL orders our role names by privilege; used to pick the highest of
+// several grants (direct membership + team memberships).
+const roleRankSQL = `CASE role WHEN 'owner' THEN 4 WHEN 'editor' THEN 3 WHEN 'suggester' THEN 2 WHEN 'viewer' THEN 1 ELSE 0 END`
+
+// grantsFor is a SQL fragment yielding one `role` row per grant a user has on
+// project p (direct + via any team). $1=userID, references outer `p.id`.
+const grantsFor = `
+	SELECT role FROM project_members WHERE project_id = p.id AND user_id = $1
+	UNION ALL
+	SELECT pt.role FROM project_teams pt
+	  JOIN team_members tm ON tm.team_id = pt.team_id AND tm.user_id = $1
+	  WHERE pt.project_id = p.id`
+
+// ProjectForUser returns the project and the user's effective role — the
+// highest of their direct membership and any team the project is shared with.
 func (s *Store) ProjectForUser(ctx context.Context, projectID, userID string) (*Project, error) {
+	// $1=userID, $2=projectID (grantsFor uses $1).
 	return scanProject(s.Pool.QueryRow(ctx, `
-		SELECT `+projectCols+`, m.role FROM projects p
-		JOIN project_members m ON m.project_id = p.id AND m.user_id = $2
-		WHERE p.id = $1 AND p.deleted_at IS NULL`, projectID, userID), true)
+		SELECT `+projectCols+`, best.role FROM projects p
+		JOIN LATERAL (
+			SELECT role FROM (`+grantsFor+`) g
+			ORDER BY `+roleRankSQL+` DESC LIMIT 1
+		) best ON true
+		WHERE p.id = $2 AND p.deleted_at IS NULL`, userID, projectID), true)
 }
 
 func (s *Store) ProjectByID(ctx context.Context, projectID string) (*Project, error) {
@@ -78,9 +96,14 @@ func (s *Store) ProjectByID(ctx context.Context, projectID string) (*Project, er
 }
 
 func (s *Store) ListProjectsForUser(ctx context.Context, userID string, query string) ([]*Project, error) {
+	// The LATERAL best-role subquery returns no rows for projects the user
+	// can't access, so the inner join naturally filters them out.
 	sql := `
-		SELECT ` + projectCols + `, m.role FROM projects p
-		JOIN project_members m ON m.project_id = p.id AND m.user_id = $1
+		SELECT ` + projectCols + `, best.role FROM projects p
+		JOIN LATERAL (
+			SELECT role FROM (` + grantsFor + `) g
+			ORDER BY ` + roleRankSQL + ` DESC LIMIT 1
+		) best ON true
 		WHERE p.deleted_at IS NULL AND p.is_template = false`
 	args := []any{userID}
 	if query != "" {

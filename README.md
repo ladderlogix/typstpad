@@ -21,6 +21,9 @@ A self-hosted collaborative [Typst](https://typst.app) document editor — "Over
 - **Comments** — threaded comments anchored to text ranges that follow the text as it moves
 - **Sharing** — invite by email with roles (owner / editor / suggester / viewer) or create
   share links
+- **Teams** — group users into teams and share a project with a whole team at a role; each
+  member's effective access is the highest of their direct grant and any team grant. Team
+  admins manage membership; teams appear in the project Share dialog
 - **Templates** — built-in report/letter/résumé/slides templates; publish any project as a
   template
 - **AI integration** — REST API, **MCP server** (streamable HTTP + stdio) and CLI so agents

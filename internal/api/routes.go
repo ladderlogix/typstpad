@@ -42,6 +42,9 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.With(auth.RequireScope("write")).Delete("/members/{userID}", s.handleRemoveMember)
 			r.Get("/links", s.handleListLinks)
 			r.With(auth.RequireScope("write")).Post("/links", s.handleCreateLink)
+			r.Get("/teams", s.handleListProjectTeams)
+			r.With(auth.RequireScope("write")).Post("/teams", s.handleShareProjectWithTeam)
+			r.With(auth.RequireScope("write")).Delete("/teams/{teamID}", s.handleUnshareProjectTeam)
 
 			// Compile / export
 			r.With(auth.RequireScope("compile")).Post("/compile", s.handleCompile)
@@ -78,6 +81,19 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 
 		r.With(auth.RequireScope("write")).Post("/links/{token}/join", s.handleJoinLink)
 		r.With(auth.RequireScope("write")).Delete("/links/{linkID}", s.handleRevokeLink)
+
+		// Teams
+		r.Get("/teams", s.handleListTeams)
+		r.With(auth.RequireScope("write")).Post("/teams", s.handleCreateTeam)
+		r.Route("/teams/{teamID}", func(r chi.Router) {
+			r.Get("/", s.handleGetTeam)
+			r.With(auth.RequireScope("write")).Patch("/", s.handleRenameTeam)
+			r.With(auth.RequireScope("write")).Delete("/", s.handleDeleteTeam)
+			r.Get("/members", s.handleListTeamMembers)
+			r.With(auth.RequireScope("write")).Post("/members", s.handleAddTeamMember)
+			r.With(auth.RequireScope("write")).Patch("/members/{userID}", s.handleUpdateTeamMember)
+			r.With(auth.RequireScope("write")).Delete("/members/{userID}", s.handleRemoveTeamMember)
+		})
 
 		// PATs (session-only: a PAT must not mint more PATs)
 		r.Get("/tokens", s.handleListTokens)

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MergeView } from "@codemirror/merge";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
-import { api, type Member, type ShareLink, type Snapshot } from "../api/client";
+import { api, type Member, type ProjectTeam, type ShareLink, type Snapshot, type Team } from "../api/client";
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
@@ -74,6 +74,28 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["links", projectId] }),
   });
 
+  // Teams the caller belongs to, and teams this project is already shared with.
+  const myTeams = useQuery<Team[]>({ queryKey: ["teams"], queryFn: () => api.get("/api/teams"), enabled: isOwner });
+  const projectTeams = useQuery<ProjectTeam[]>({
+    queryKey: ["projectTeams", projectId],
+    queryFn: () => api.get(`/api/projects/${projectId}/teams`),
+  });
+  const [teamId, setTeamId] = useState("");
+  const [teamRole, setTeamRole] = useState("editor");
+  const invalidateTeams = () => queryClient.invalidateQueries({ queryKey: ["projectTeams", projectId] });
+  const shareTeam = useMutation({
+    mutationFn: () => api.post(`/api/projects/${projectId}/teams`, { teamId, role: teamRole }),
+    onSuccess: () => {
+      setTeamId("");
+      invalidateTeams();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+  const unshareTeam = useMutation({
+    mutationFn: (id: string) => api.del(`/api/projects/${projectId}/teams/${id}`),
+    onSuccess: invalidateTeams,
+  });
+
   return (
     <Modal title="Share project" onClose={onClose}>
       <div className="space-y-6 p-5">
@@ -125,6 +147,55 @@ export function ShareDialog({ projectId, isOwner, onClose }: { projectId: string
                 )}
               </li>
             ))}
+          </ul>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-sm font-medium text-gray-700">Teams</h3>
+          {isOwner && (
+            <div className="mb-3 flex gap-2">
+              <select
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+                className="flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+              >
+                <option value="">Select a team…</option>
+                {myTeams.data
+                  ?.filter((t) => !projectTeams.data?.some((pt) => pt.teamId === t.id))
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+              </select>
+              <RoleSelect value={teamRole} onChange={setTeamRole} />
+              <button
+                onClick={() => teamId && shareTeam.mutate()}
+                disabled={!teamId}
+                className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                Share
+              </button>
+            </div>
+          )}
+          <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+            {projectTeams.data?.map((pt) => (
+              <li key={pt.teamId} className="flex items-center justify-between px-3 py-2 text-sm">
+                <span className="text-gray-900">
+                  {pt.teamName} <span className="text-xs text-gray-400">· {pt.role}</span>
+                </span>
+                {isOwner && (
+                  <button className="text-xs text-red-500 hover:underline" onClick={() => unshareTeam.mutate(pt.teamId)}>
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+            {projectTeams.data?.length === 0 && (
+              <li className="px-3 py-2 text-xs text-gray-400">
+                {isOwner ? "Not shared with any team yet." : "Not shared with any team."}
+              </li>
+            )}
           </ul>
         </section>
 
