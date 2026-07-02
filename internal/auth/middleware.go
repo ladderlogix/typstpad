@@ -63,6 +63,12 @@ func (a *Auth) ClearSession(w http.ResponseWriter, r *http.Request) {
 // cookie and stores it on the context. Anonymous requests pass through.
 func (a *Auth) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The Prometheus /metrics endpoint carries its own bearer token that is
+		// not a PAT; let its handler validate it instead of failing here.
+		if r.URL.Path == "/metrics" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if bearer := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "); bearer != r.Header.Get("Authorization") && bearer != "" {
 			user, scopes, err := a.Store.APITokenUser(r.Context(), HashToken(bearer))
 			if err == nil {
