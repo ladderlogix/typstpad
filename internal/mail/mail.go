@@ -6,15 +6,25 @@ import (
 	"fmt"
 	"net/smtp"
 	"strings"
-
-	"typstpad/internal/config"
 )
 
-type Mailer struct {
-	cfg *config.Config
+// SMTPConfig supplies live SMTP settings (implemented by settings.Service so
+// changes made in the admin UI take effect without a restart).
+type SMTPConfig interface {
+	SMTPHost() string
+	SMTPPort() int
+	SMTPUsername() string
+	SMTPPassword() string
+	SMTPFrom() string
+	SMTPFromName() string
+	SMTPEnabled() bool
 }
 
-func New(cfg *config.Config) *Mailer {
+type Mailer struct {
+	cfg SMTPConfig
+}
+
+func New(cfg SMTPConfig) *Mailer {
 	return &Mailer{cfg: cfg}
 }
 
@@ -38,10 +48,10 @@ func (m *Mailer) SendVerification(toEmail, toName, link string) error {
 
 func (m *Mailer) send(to, subject, text, html string) error {
 	c := m.cfg
-	from := c.SMTPFrom
+	from := c.SMTPFrom()
 	fromHeader := from
-	if c.SMTPFromName != "" {
-		fromHeader = fmt.Sprintf("%s <%s>", c.SMTPFromName, from)
+	if c.SMTPFromName() != "" {
+		fromHeader = fmt.Sprintf("%s <%s>", c.SMTPFromName(), from)
 	}
 
 	boundary := "tp_boundary_9f3c1e"
@@ -55,12 +65,10 @@ func (m *Mailer) send(to, subject, text, html string) error {
 	fmt.Fprintf(&b, "--%s\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n%s\r\n", boundary, html)
 	fmt.Fprintf(&b, "--%s--\r\n", boundary)
 
-	addr := fmt.Sprintf("%s:%d", c.SMTPHost, c.SMTPPort)
+	addr := fmt.Sprintf("%s:%d", c.SMTPHost(), c.SMTPPort())
 	var auth smtp.Auth
-	if c.SMTPUsername != "" {
-		auth = smtp.PlainAuth("", c.SMTPUsername, c.SMTPPassword, c.SMTPHost)
+	if c.SMTPUsername() != "" {
+		auth = smtp.PlainAuth("", c.SMTPUsername(), c.SMTPPassword(), c.SMTPHost())
 	}
-	// net/smtp.SendMail upgrades to STARTTLS automatically when the server
-	// advertises it (SES SMTP on 587 does).
 	return smtp.SendMail(addr, auth, from, []string{to}, []byte(b.String()))
 }

@@ -48,6 +48,7 @@ export interface User {
   name: string;
   isAdmin: boolean;
   color: string;
+  emailVerified?: boolean;
 }
 
 export interface Project {
@@ -166,6 +167,24 @@ export interface AuthConfig {
   allowRegistration: boolean;
   emailVerification: boolean;
   signupAllowlist: string;
+}
+
+export interface AdminSettings {
+  allowRegistration: boolean;
+  signupAllowlist: string;
+  requireEmailVerification: boolean;
+  smtpHost: string;
+  smtpPort: number;
+  smtpUsername: string;
+  smtpPasswordSet: boolean;
+  smtpFrom: string;
+  smtpFromName: string;
+  oidcIssuer: string;
+  oidcClientId: string;
+  oidcClientSecretSet: boolean;
+  oidcScopes: string;
+  emailVerificationActive: boolean;
+  oidcActive: boolean;
 }
 
 export function roleAtLeast(role: string | undefined, min: "viewer" | "suggester" | "editor" | "owner"): boolean {

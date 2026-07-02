@@ -16,6 +16,7 @@ import (
 	"typstpad/internal/config"
 	"typstpad/internal/mail"
 	mcpsrv "typstpad/internal/mcp"
+	"typstpad/internal/settings"
 	"typstpad/internal/store"
 	"typstpad/internal/versions"
 )
@@ -38,6 +39,7 @@ type Server struct {
 	Compiler *compile.Compiler
 	Versions *versions.Snapshotter
 	Mailer   *mail.Mailer
+	Settings *settings.Service
 	SPA      fs.FS
 	// OnDocStored is invoked whenever the collab sidecar persists a doc;
 	// the snapshotter uses it to mark projects dirty.

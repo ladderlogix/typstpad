@@ -98,9 +98,15 @@ func (c *Config) EmailVerificationRequired() bool {
 }
 
 // EmailAllowed checks an email against SignupAllowlist (case-insensitive).
-// Empty allowlist permits everything.
 func (c *Config) EmailAllowed(email string) bool {
-	if strings.TrimSpace(c.SignupAllowlist) == "" {
+	return EmailMatchesAllowlist(c.SignupAllowlist, email)
+}
+
+// EmailMatchesAllowlist reports whether email is permitted by a comma/space
+// separated allowlist of domains ("ics.red") and/or exact addresses
+// ("me@ics.red"). An empty allowlist permits everything.
+func EmailMatchesAllowlist(allowlist, email string) bool {
+	if strings.TrimSpace(allowlist) == "" {
 		return true
 	}
 	email = strings.ToLower(strings.TrimSpace(email))
@@ -109,7 +115,7 @@ func (c *Config) EmailAllowed(email string) bool {
 		return false
 	}
 	domain := email[at+1:]
-	for _, entry := range strings.FieldsFunc(c.SignupAllowlist, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' }) {
+	for _, entry := range strings.FieldsFunc(allowlist, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' }) {
 		entry = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(entry, "@")))
 		if entry == "" {
 			continue

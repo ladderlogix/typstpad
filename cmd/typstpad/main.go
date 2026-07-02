@@ -21,6 +21,7 @@ import (
 	"typstpad/internal/config"
 	"typstpad/internal/mail"
 	"typstpad/internal/seed"
+	"typstpad/internal/settings"
 	"typstpad/internal/store"
 	"typstpad/internal/versions"
 	"typstpad/web"
@@ -80,6 +81,11 @@ func serveCmd() *cobra.Command {
 			})
 			go snap.Run(ctx)
 
+			settingsSvc, err := settings.New(ctx, st, cfg)
+			if err != nil {
+				return fmt.Errorf("settings: %w", err)
+			}
+
 			srv := &api.Server{
 				Cfg:      cfg,
 				Store:    st,
@@ -89,7 +95,8 @@ func serveCmd() *cobra.Command {
 				Collab:   cc,
 				Compiler: comp,
 				Versions: snap,
-				Mailer:   mail.New(cfg),
+				Mailer:   mail.New(settingsSvc),
+				Settings: settingsSvc,
 				SPA:      web.Dist(),
 				OnDocStored: func(projectID string) {
 					snap.MarkDirty(projectID)
@@ -101,7 +108,8 @@ func serveCmd() *cobra.Command {
 				},
 			}
 			if err := srv.SetupOIDC(ctx); err != nil {
-				return fmt.Errorf("oidc: %w", err)
+				// Don't fail startup if a bad OIDC config was saved; log and continue.
+				slog.Error("OIDC init failed (SSO disabled until fixed)", "err", err)
 			}
 			// Seed templates on startup too (covers restarts after first user).
 			if err := seed.Templates(ctx, st); err != nil {

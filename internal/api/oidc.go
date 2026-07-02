@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"sync"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -20,34 +21,51 @@ type oidcState struct {
 	oauth    *oauth2.Config
 }
 
-var oidcHandlers *oidcState
+var (
+	oidcHandlers *oidcState
+	oidcMu       sync.RWMutex
+)
 
-// SetupOIDC initializes the OIDC provider when configured; otherwise a no-op.
+func currentOIDC() *oidcState {
+	oidcMu.RLock()
+	defer oidcMu.RUnlock()
+	return oidcHandlers
+}
+
+// SetupOIDC (re)initializes the OIDC provider from current settings. Safe to
+// call at startup and again whenever an admin updates OIDC settings. Clears
+// the provider when OIDC is not configured.
 func (s *Server) SetupOIDC(ctx context.Context) error {
-	if !s.Cfg.OIDCEnabled() {
+	if !s.Settings.OIDCEnabled() {
+		oidcMu.Lock()
+		oidcHandlers = nil
+		oidcMu.Unlock()
 		return nil
 	}
-	provider, err := oidc.NewProvider(ctx, s.Cfg.OIDCIssuer)
+	provider, err := oidc.NewProvider(ctx, s.Settings.OIDCIssuer())
 	if err != nil {
 		return err
 	}
+	clientID := s.Settings.OIDCClientID()
 	scopes := []string{oidc.ScopeOpenID}
-	for _, sc := range splitScopes(s.Cfg.OIDCScopes) {
+	for _, sc := range splitScopes(s.Settings.OIDCScopes()) {
 		if sc != oidc.ScopeOpenID {
 			scopes = append(scopes, sc)
 		}
 	}
+	oidcMu.Lock()
 	oidcHandlers = &oidcState{
 		provider: provider,
-		verifier: provider.Verifier(&oidc.Config{ClientID: s.Cfg.OIDCClientID}),
+		verifier: provider.Verifier(&oidc.Config{ClientID: clientID}),
 		oauth: &oauth2.Config{
-			ClientID:     s.Cfg.OIDCClientID,
-			ClientSecret: s.Cfg.OIDCClientSecret,
+			ClientID:     clientID,
+			ClientSecret: s.Settings.OIDCClientSecret(),
 			Endpoint:     provider.Endpoint(),
 			RedirectURL:  s.Cfg.PublicURL + "/api/auth/oidc/callback",
 			Scopes:       scopes,
 		},
 	}
+	oidcMu.Unlock()
 	return nil
 }
 
@@ -84,7 +102,8 @@ func (s *Server) oidcCookie(w http.ResponseWriter, name, value string) {
 }
 
 func (s *Server) handleOIDCLogin(w http.ResponseWriter, r *http.Request) {
-	if oidcHandlers == nil {
+	oh := currentOIDC()
+	if oh == nil {
 		writeErr(w, http.StatusNotFound, "SSO not configured")
 		return
 	}
@@ -92,11 +111,12 @@ func (s *Server) handleOIDCLogin(w http.ResponseWriter, r *http.Request) {
 	verifier := oauth2.GenerateVerifier()
 	s.oidcCookie(w, "oidc_state", state)
 	s.oidcCookie(w, "oidc_verifier", verifier)
-	http.Redirect(w, r, oidcHandlers.oauth.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier)), http.StatusFound)
+	http.Redirect(w, r, oh.oauth.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier)), http.StatusFound)
 }
 
 func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
-	if oidcHandlers == nil {
+	oh := currentOIDC()
+	if oh == nil {
 		writeErr(w, http.StatusNotFound, "SSO not configured")
 		return
 	}
@@ -108,7 +128,7 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
-	token, err := oidcHandlers.oauth.Exchange(ctx, r.URL.Query().Get("code"),
+	token, err := oh.oauth.Exchange(ctx, r.URL.Query().Get("code"),
 		oauth2.VerifierOption(verifierCookie.Value))
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, "token exchange failed: "+err.Error())
@@ -119,7 +139,7 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadGateway, "no id_token in response")
 		return
 	}
-	idToken, err := oidcHandlers.verifier.Verify(ctx, rawIDToken)
+	idToken, err := oh.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		writeErr(w, http.StatusUnauthorized, "invalid id_token: "+err.Error())
 		return

@@ -3,11 +3,13 @@ package api
 import (
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"typstpad/internal/auth"
+	"typstpad/internal/settings"
 	"typstpad/internal/store"
 )
 
@@ -131,27 +133,91 @@ func (s *Server) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAdminGetSettings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"allowRegistration": s.Store.SettingBool(r.Context(), "allow_registration", true),
-	})
+	writeJSON(w, http.StatusOK, s.Settings.AdminView())
 }
 
+// handleAdminPutSettings updates any provided setting. Secret fields (SMTP
+// password, OIDC client secret) are only changed when a non-empty value is
+// sent; sending "" leaves them unchanged, and null clears them.
 func (s *Server) handleAdminPutSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		AllowRegistration *bool `json:"allowRegistration"`
+		AllowRegistration        *bool   `json:"allowRegistration"`
+		SignupAllowlist          *string `json:"signupAllowlist"`
+		RequireEmailVerification *bool   `json:"requireEmailVerification"`
+		SMTPHost                 *string `json:"smtpHost"`
+		SMTPPort                 *string `json:"smtpPort"`
+		SMTPUsername             *string `json:"smtpUsername"`
+		SMTPPassword             *string `json:"smtpPassword"`
+		SMTPFrom                 *string `json:"smtpFrom"`
+		SMTPFromName             *string `json:"smtpFromName"`
+		OIDCIssuer               *string `json:"oidcIssuer"`
+		OIDCClientID             *string `json:"oidcClientId"`
+		OIDCClientSecret         *string `json:"oidcClientSecret"`
+		OIDCScopes               *string `json:"oidcScopes"`
 	}
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if req.AllowRegistration != nil {
-		val := "false"
-		if *req.AllowRegistration {
-			val = "true"
-		}
-		if err := s.Store.SetSetting(r.Context(), "allow_registration", val); err != nil {
+	ctx := r.Context()
+	set := func(key, val string) bool {
+		if err := s.Settings.Set(ctx, key, val); err != nil {
 			fail(w, err)
+			return false
+		}
+		return true
+	}
+	setBool := func(key string, v *bool) bool {
+		if v == nil {
+			return true
+		}
+		return set(key, boolStr(*v))
+	}
+	setStr := func(key string, v *string) bool {
+		if v == nil {
+			return true
+		}
+		return set(key, strings.TrimSpace(*v))
+	}
+	// Secret: only overwrite when a non-empty value is supplied.
+	setSecret := func(key string, v *string) bool {
+		if v == nil || *v == "" {
+			return true
+		}
+		return set(key, *v)
+	}
+
+	oidcBefore := s.Settings.OIDCIssuer() + "|" + s.Settings.OIDCClientID() + "|" + s.Settings.OIDCClientSecret() + "|" + s.Settings.OIDCScopes()
+
+	if !setBool(settings.KeyAllowRegistration, req.AllowRegistration) ||
+		!setStr(settings.KeySignupAllowlist, req.SignupAllowlist) ||
+		!setBool(settings.KeyRequireEmailVerification, req.RequireEmailVerification) ||
+		!setStr(settings.KeySMTPHost, req.SMTPHost) ||
+		!setStr(settings.KeySMTPPort, req.SMTPPort) ||
+		!setStr(settings.KeySMTPUsername, req.SMTPUsername) ||
+		!setSecret(settings.KeySMTPPassword, req.SMTPPassword) ||
+		!setStr(settings.KeySMTPFrom, req.SMTPFrom) ||
+		!setStr(settings.KeySMTPFromName, req.SMTPFromName) ||
+		!setStr(settings.KeyOIDCIssuer, req.OIDCIssuer) ||
+		!setStr(settings.KeyOIDCClientID, req.OIDCClientID) ||
+		!setSecret(settings.KeyOIDCClientSecret, req.OIDCClientSecret) ||
+		!setStr(settings.KeyOIDCScopes, req.OIDCScopes) {
+		return
+	}
+
+	// Re-initialize OIDC if any OIDC field changed. Report discovery errors.
+	oidcAfter := s.Settings.OIDCIssuer() + "|" + s.Settings.OIDCClientID() + "|" + s.Settings.OIDCClientSecret() + "|" + s.Settings.OIDCScopes()
+	if oidcAfter != oidcBefore {
+		if err := s.SetupOIDC(ctx); err != nil {
+			writeErr(w, http.StatusBadRequest, "OIDC settings saved but provider init failed: "+err.Error())
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, s.Settings.AdminView())
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }

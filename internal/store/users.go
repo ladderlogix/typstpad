@@ -183,3 +183,27 @@ func (s *Store) SetSetting(ctx context.Context, key string, valueJSON string) er
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, key, valueJSON)
 	return err
 }
+
+// AllSettings returns every setting as key → scalar text (jsonb strings,
+// bools and numbers all unwrap via #>>'{}').
+func (s *Store) AllSettings(ctx context.Context) (map[string]string, error) {
+	rows, err := s.Pool.Query(ctx, `SELECT key, value #>> '{}' FROM settings`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, err
+		}
+		out[k] = v
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) DeleteSetting(ctx context.Context, key string) error {
+	_, err := s.Pool.Exec(ctx, `DELETE FROM settings WHERE key=$1`, key)
+	return err
+}

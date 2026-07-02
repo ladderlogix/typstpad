@@ -26,10 +26,10 @@ func pickColor(seed string) string {
 
 func (s *Server) handleAuthConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"oidcEnabled":       s.Cfg.OIDCEnabled(),
-		"allowRegistration": s.Store.SettingBool(r.Context(), "allow_registration", true),
-		"emailVerification": s.Cfg.EmailVerificationRequired(),
-		"signupAllowlist":   s.Cfg.SignupAllowlist,
+		"oidcEnabled":       s.Settings.OIDCEnabled(),
+		"allowRegistration": s.Settings.AllowRegistration(),
+		"emailVerification": s.Settings.EmailVerificationRequired(),
+		"signupAllowlist":   s.Settings.SignupAllowlist(),
 	})
 }
 
@@ -70,7 +70,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "password must be at least 8 characters")
 		return
 	}
-	if !s.Cfg.EmailAllowed(req.Email) {
+	if !s.Settings.EmailAllowed(req.Email) {
 		writeErr(w, http.StatusForbidden, "this email address is not permitted to sign up here")
 		return
 	}
@@ -81,7 +81,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	if n > 0 && !s.Store.SettingBool(r.Context(), "allow_registration", true) {
+	if n > 0 && !s.Settings.AllowRegistration() {
 		writeErr(w, http.StatusForbidden, "registration is disabled")
 		return
 	}
@@ -105,7 +105,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// When email verification is on, don't log the user in — send a link and
 	// tell the client to prompt for verification.
-	if s.Cfg.EmailVerificationRequired() {
+	if s.Settings.EmailVerificationRequired() {
 		if err := s.sendVerification(r, user); err != nil {
 			slog.Error("send verification email failed", "err", err)
 			writeErr(w, http.StatusBadGateway, "could not send verification email; contact the administrator")
@@ -151,7 +151,7 @@ func (s *Server) handleResendVerification(w http.ResponseWriter, r *http.Request
 		return
 	}
 	// Always return ok so this doesn't reveal which emails are registered.
-	if s.Cfg.EmailVerificationRequired() {
+	if s.Settings.EmailVerificationRequired() {
 		if user, err := s.Store.UserByEmail(r.Context(), strings.TrimSpace(strings.ToLower(req.Email))); err == nil && !user.EmailVerified {
 			if err := s.sendVerification(r, user); err != nil {
 				slog.Error("resend verification failed", "err", err)
@@ -182,7 +182,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
-	if s.Cfg.EmailVerificationRequired() && !user.EmailVerified {
+	if s.Settings.EmailVerificationRequired() && !user.EmailVerified {
 		writeJSON(w, http.StatusForbidden, map[string]any{
 			"error":              "please verify your email before signing in",
 			"needsVerification":  true,
