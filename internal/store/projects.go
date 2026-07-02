@@ -24,6 +24,10 @@ type Project struct {
 	UpdatedAt    time.Time       `json:"updatedAt"`
 	// Role is the requesting user's role, filled in by list/get queries.
 	Role string `json:"role,omitempty"`
+	// Favorite is whether the requesting user has starred it (list queries only).
+	Favorite bool `json:"favorite"`
+	// DeletedAt is set for trashed projects (trash listing only).
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
 }
 
 const projectCols = `p.id, p.name, p.description, p.owner_id, p.main_path, p.is_template, p.template_meta, p.created_at, p.updated_at`
@@ -98,15 +102,18 @@ func (s *Store) ProjectByID(ctx context.Context, projectID string) (*Project, er
 		SELECT `+projectCols+` FROM projects p WHERE p.id = $1 AND p.deleted_at IS NULL`, projectID), false)
 }
 
-func (s *Store) ListProjectsForUser(ctx context.Context, userID, query, collectionID string) ([]*Project, error) {
+func (s *Store) ListProjectsForUser(ctx context.Context, userID, query, collectionID string, favoritesOnly bool) ([]*Project, error) {
 	// The LATERAL best-role subquery returns no rows for projects the user
-	// can't access, so the inner join naturally filters them out.
+	// can't access, so the inner join naturally filters them out. A LEFT JOIN
+	// on project_favorites tells us which are starred by this user.
 	sql := `
-		SELECT ` + projectCols + `, best.role FROM projects p
+		SELECT ` + projectCols + `, best.role, (fav.project_id IS NOT NULL) AS favorite
+		FROM projects p
 		JOIN LATERAL (
 			SELECT role FROM (` + grantsFor + `) g
 			ORDER BY ` + roleRankSQL + ` DESC LIMIT 1
 		) best ON true
+		LEFT JOIN project_favorites fav ON fav.project_id = p.id AND fav.user_id = $1
 		WHERE p.deleted_at IS NULL AND p.is_template = false`
 	args := []any{userID}
 	if query != "" {
@@ -119,6 +126,9 @@ func (s *Store) ListProjectsForUser(ctx context.Context, userID, query, collecti
 			JOIN collections c ON c.id = pc.collection_id AND c.owner_id = $1
 			WHERE pc.project_id = p.id AND pc.collection_id = $` + itoa(len(args)) + `)`
 	}
+	if favoritesOnly {
+		sql += ` AND fav.project_id IS NOT NULL`
+	}
 	sql += ` ORDER BY p.updated_at DESC`
 	rows, err := s.Pool.Query(ctx, sql, args...)
 	if err != nil {
@@ -127,13 +137,73 @@ func (s *Store) ListProjectsForUser(ctx context.Context, userID, query, collecti
 	defer rows.Close()
 	var out []*Project
 	for rows.Next() {
-		p, err := scanProject(rows, true)
-		if err != nil {
+		var p Project
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.OwnerID, &p.MainPath,
+			&p.IsTemplate, &p.TemplateMeta, &p.CreatedAt, &p.UpdatedAt, &p.Role, &p.Favorite); err != nil {
 			return nil, err
 		}
-		out = append(out, p)
+		out = append(out, &p)
 	}
 	return out, rows.Err()
+}
+
+// ListTrashedProjects returns the caller's soft-deleted projects (owner only).
+func (s *Store) ListTrashedProjects(ctx context.Context, userID string) ([]*Project, error) {
+	rows, err := s.Pool.Query(ctx, `
+		SELECT `+projectCols+`, p.deleted_at FROM projects p
+		WHERE p.owner_id = $1 AND p.deleted_at IS NOT NULL AND p.is_template = false
+		ORDER BY p.deleted_at DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Project
+	for rows.Next() {
+		var p Project
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.OwnerID, &p.MainPath,
+			&p.IsTemplate, &p.TemplateMeta, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt); err != nil {
+			return nil, err
+		}
+		p.Role = "owner"
+		out = append(out, &p)
+	}
+	return out, rows.Err()
+}
+
+// TrashedProjectOwner returns (ownerID, true) for a soft-deleted project, so
+// restore / permanent-delete can authorize without the deleted_at filter that
+// projectAccess applies.
+func (s *Store) TrashedProjectOwner(ctx context.Context, id string) (string, bool) {
+	var owner string
+	err := s.Pool.QueryRow(ctx,
+		`SELECT owner_id FROM projects WHERE id=$1 AND deleted_at IS NOT NULL`, id).Scan(&owner)
+	if err != nil {
+		return "", false
+	}
+	return owner, true
+}
+
+func (s *Store) RestoreProject(ctx context.Context, id string) error {
+	_, err := s.Pool.Exec(ctx, `UPDATE projects SET deleted_at = NULL, updated_at = now() WHERE id = $1`, id)
+	return err
+}
+
+// HardDeleteProject permanently removes a project; child rows (files, versions,
+// members, …) cascade. Content-addressed blobs are shared and left in place.
+func (s *Store) HardDeleteProject(ctx context.Context, id string) error {
+	_, err := s.Pool.Exec(ctx, `DELETE FROM projects WHERE id = $1`, id)
+	return err
+}
+
+func (s *Store) SetFavorite(ctx context.Context, userID, projectID string, on bool) error {
+	if on {
+		_, err := s.Pool.Exec(ctx, `
+			INSERT INTO project_favorites (user_id, project_id) VALUES ($1, $2)
+			ON CONFLICT DO NOTHING`, userID, projectID)
+		return err
+	}
+	_, err := s.Pool.Exec(ctx, `DELETE FROM project_favorites WHERE user_id=$1 AND project_id=$2`, userID, projectID)
+	return err
 }
 
 func (s *Store) ListTemplates(ctx context.Context) ([]*Project, error) {

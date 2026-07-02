@@ -63,6 +63,8 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   role?: "owner" | "editor" | "suggester" | "viewer";
+  favorite?: boolean;
+  deletedAt?: string;
 }
 
 export interface Collection {

@@ -40,7 +40,8 @@ deployed through the pipeline, and verified.
 ## P3 — Nice-to-haves
 - [ ] Team-scoped collections (shared groups)
 - [ ] Per-file permissions
-- [ ] Project favorites/starring; trash with restore
+- [x] Project favorites/starring (star on cards + Favorites filter); trash with restore
+      (deletes go to a Trash view with restore / delete-forever; owner-only)
 - [ ] Admin audit log
 - [ ] Exact scroll-sync / jump-to-source (SyncTeX-style)
 - [ ] Mobile/responsive editor layout

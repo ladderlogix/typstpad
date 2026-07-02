@@ -31,12 +31,17 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 		r.Get("/projects", s.handleListProjects)
 		r.With(auth.RequireScope("write")).Post("/projects", s.handleCreateProject)
 		r.With(auth.RequireScope("write")).Post("/projects/import", s.handleImportZip)
+		r.Get("/projects/trash", s.handleListTrash)
 		r.Get("/search", s.handleSearch)
 		r.Route("/projects/{projectID}", func(r chi.Router) {
 			r.Get("/", s.handleGetProject)
 			r.With(auth.RequireScope("write")).Patch("/", s.handleUpdateProject)
 			r.With(auth.RequireScope("write")).Delete("/", s.handleDeleteProject)
 			r.With(auth.RequireScope("write")).Post("/duplicate", s.handleDuplicateProject)
+			r.With(auth.RequireScope("write")).Post("/restore", s.handleRestoreProject)
+			r.With(auth.RequireScope("write")).Delete("/permanent", s.handlePermanentDeleteProject)
+			r.With(auth.RequireScope("write")).Post("/favorite", s.handleSetFavorite)
+			r.With(auth.RequireScope("write")).Delete("/favorite", s.handleSetFavorite)
 			r.Get("/collections", s.handleProjectCollections)
 			r.Get("/events", s.handleProjectEvents)
 

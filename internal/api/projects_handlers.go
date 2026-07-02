@@ -21,7 +21,8 @@ see the #link("https://typst.app/docs/")[documentation] for syntax.
 
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFrom(r.Context())
-	projects, err := s.Store.ListProjectsForUser(r.Context(), u.ID, r.URL.Query().Get("q"), r.URL.Query().Get("collection"))
+	favoritesOnly := r.URL.Query().Get("favorites") == "true"
+	projects, err := s.Store.ListProjectsForUser(r.Context(), u.ID, r.URL.Query().Get("q"), r.URL.Query().Get("collection"), favoritesOnly)
 	if err != nil {
 		fail(w, err)
 		return
@@ -30,6 +31,73 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		projects = []*store.Project{}
 	}
 	writeJSON(w, http.StatusOK, projects)
+}
+
+func (s *Server) handleListTrash(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFrom(r.Context())
+	projects, err := s.Store.ListTrashedProjects(r.Context(), u.ID)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if projects == nil {
+		projects = []*store.Project{}
+	}
+	writeJSON(w, http.StatusOK, projects)
+}
+
+// ownsTrashed authorizes an action on a soft-deleted project: only its owner
+// (or an admin) may restore or permanently delete it.
+func (s *Server) ownsTrashed(w http.ResponseWriter, r *http.Request, projectID string) bool {
+	u := auth.UserFrom(r.Context())
+	owner, ok := s.Store.TrashedProjectOwner(r.Context(), projectID)
+	if !ok {
+		writeErr(w, http.StatusNotFound, "not found in trash")
+		return false
+	}
+	if owner != u.ID && !u.IsAdmin {
+		writeErr(w, http.StatusForbidden, "only the owner can do that")
+		return false
+	}
+	return true
+}
+
+func (s *Server) handleRestoreProject(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "projectID")
+	if !s.ownsTrashed(w, r, id) {
+		return
+	}
+	if err := s.Store.RestoreProject(r.Context(), id); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handlePermanentDeleteProject(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "projectID")
+	if !s.ownsTrashed(w, r, id) {
+		return
+	}
+	if err := s.Store.HardDeleteProject(r.Context(), id); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleSetFavorite(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFrom(r.Context())
+	p, ok := s.projectAccess(w, r, chi.URLParam(r, "projectID"), "viewer")
+	if !ok {
+		return
+	}
+	on := r.Method == http.MethodPost
+	if err := s.Store.SetFavorite(r.Context(), u.ID, p.ID, on); err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"favorite": on})
 }
 
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {

@@ -11,14 +11,24 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [showNew, setShowNew] = useState(false);
-  const [activeCollection, setActiveCollection] = useState<string>(""); // "" = all
+  // Selected view: "all" | "favorites" | "trash" | a collection id.
+  const [sel, setSel] = useState<string>("all");
+  const activeCollection = sel !== "all" && sel !== "favorites" && sel !== "trash" ? sel : "";
 
   const projects = useQuery<Project[]>({
-    queryKey: ["projects", query, activeCollection],
+    queryKey: ["projects", query, sel],
     queryFn: () =>
       api.get<Project[]>(
-        `/api/projects?q=${encodeURIComponent(query)}${activeCollection ? `&collection=${activeCollection}` : ""}`
+        `/api/projects?q=${encodeURIComponent(query)}` +
+          (activeCollection ? `&collection=${activeCollection}` : "") +
+          (sel === "favorites" ? `&favorites=true` : "")
       ),
+    enabled: sel !== "trash",
+  });
+  const trash = useQuery<Project[]>({
+    queryKey: ["trash"],
+    queryFn: () => api.get<Project[]>("/api/projects/trash"),
+    enabled: sel === "trash",
   });
   const templates = useQuery<Project[]>({
     queryKey: ["templates"],
@@ -31,7 +41,26 @@ export default function ProjectsPage() {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/api/projects/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["trash"] });
+    },
+  });
+  const toggleFavorite = useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) =>
+      on ? api.post(`/api/projects/${id}/favorite`) : api.del(`/api/projects/${id}/favorite`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  });
+  const restore = useMutation({
+    mutationFn: (id: string) => api.post(`/api/projects/${id}/restore`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trash"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+  const purge = useMutation({
+    mutationFn: (id: string) => api.del(`/api/projects/${id}/permanent`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["trash"] }),
   });
   const duplicate = useMutation({
     mutationFn: (id: string) => api.post<Project>(`/api/projects/${id}/duplicate`, {}),
@@ -44,7 +73,7 @@ export default function ProjectsPage() {
   const deleteCollection = useMutation({
     mutationFn: (id: string) => api.del(`/api/collections/${id}`),
     onSuccess: () => {
-      setActiveCollection("");
+      setSel("all");
       queryClient.invalidateQueries({ queryKey: ["collections"] });
     },
   });
@@ -104,23 +133,16 @@ export default function ProjectsPage() {
 
       <main className="mx-auto grid max-w-6xl grid-cols-[14rem_1fr] gap-6 px-6 py-8">
         <aside>
-          <button
-            onClick={() => setActiveCollection("")}
-            className={`mb-1 w-full rounded-md px-3 py-1.5 text-left text-sm ${
-              activeCollection === ""
-                ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-            }`}
-          >
-            All projects
-          </button>
+          <SidebarItem label="All projects" active={sel === "all"} onClick={() => setSel("all")} />
+          <SidebarItem label="⭐ Favorites" active={sel === "favorites"} onClick={() => setSel("favorites")} />
+          <SidebarItem label="🗑 Trash" active={sel === "trash"} onClick={() => setSel("trash")} />
           <p className="mb-1 mt-4 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Collections</p>
           {collections.data?.map((c) => (
             <div key={c.id} className="group flex items-center">
               <button
-                onClick={() => setActiveCollection(c.id)}
+                onClick={() => setSel(c.id)}
                 className={`flex-1 truncate rounded-md px-3 py-1.5 text-left text-sm ${
-                  activeCollection === c.id
+                  sel === c.id
                     ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
                     : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 }`}
@@ -187,14 +209,53 @@ export default function ProjectsPage() {
           </div>
         </div>
 
+        {sel === "trash" ? (
+          <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white dark:divide-gray-800 dark:border-gray-800 dark:bg-gray-900">
+            {trash.data?.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-gray-800 dark:text-gray-200">{p.name}</p>
+                  <p className="text-xs text-gray-400">
+                    deleted {p.deletedAt ? new Date(p.deletedAt).toLocaleString() : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-3 text-xs">
+                  <button className="text-indigo-600 hover:underline dark:text-indigo-400" onClick={() => restore.mutate(p.id)}>
+                    Restore
+                  </button>
+                  <button
+                    className="text-red-600 hover:underline"
+                    onClick={() => {
+                      if (confirm(`Permanently delete "${p.name}"? This cannot be undone.`)) purge.mutate(p.id);
+                    }}
+                  >
+                    Delete forever
+                  </button>
+                </div>
+              </div>
+            ))}
+            {trash.data?.length === 0 && <p className="py-12 text-center text-gray-400">Trash is empty.</p>}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.data?.map((p) => (
             <div
               key={p.id}
-              className="group rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm transition hover:border-indigo-300 hover:shadow"
+              className="group relative rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm transition hover:border-indigo-300 hover:shadow"
             >
+              <button
+                className={`absolute right-3 top-3 text-lg leading-none transition ${
+                  p.favorite
+                    ? "text-amber-400"
+                    : "text-gray-300 opacity-0 hover:text-amber-400 group-hover:opacity-100 dark:text-gray-600"
+                }`}
+                title={p.favorite ? "Unstar" : "Star"}
+                onClick={() => toggleFavorite.mutate({ id: p.id, on: !p.favorite })}
+              >
+                {p.favorite ? "★" : "☆"}
+              </button>
               <Link to={`/p/${p.id}`} className="block">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{p.name}</h3>
+                <h3 className="pr-6 font-semibold text-gray-900 dark:text-gray-100">{p.name}</h3>
                 <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">{p.description || " "}</p>
                 <p className="mt-2 text-xs text-gray-400">
                   {p.role} · updated {new Date(p.updatedAt).toLocaleString()}
@@ -211,7 +272,7 @@ export default function ProjectsPage() {
                   <button
                     className="hover:text-red-600"
                     onClick={() => {
-                      if (confirm(`Delete project "${p.name}"?`)) remove.mutate(p.id);
+                      if (confirm(`Move "${p.name}" to trash?`)) remove.mutate(p.id);
                     }}
                   >
                     Delete
@@ -222,10 +283,13 @@ export default function ProjectsPage() {
           ))}
           {projects.data?.length === 0 && (
             <p className="col-span-full py-12 text-center text-gray-400">
-              No projects yet — create one from a template.
+              {sel === "favorites"
+                ? "No favorites yet — star a project to pin it here."
+                : "No projects yet — create one from a template."}
             </p>
           )}
         </div>
+        )}
         </div>
       </main>
 
@@ -236,6 +300,21 @@ export default function ProjectsPage() {
         <OrganizeDialog project={projectMenu} collections={collections.data ?? []} onClose={() => setProjectMenu(null)} />
       )}
     </div>
+  );
+}
+
+function SidebarItem({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`mb-1 w-full rounded-md px-3 py-1.5 text-left text-sm ${
+        active
+          ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+          : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
