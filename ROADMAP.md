@@ -7,8 +7,8 @@ deployed through the pipeline, and verified.
 - [x] Password reset for local accounts (email link via SES)
 - [x] Self-service account settings (change display name, color, password)
 - [ ] Automated backups (nightly `pg_dump` + assets, stored off-box)
-- [ ] Rate limiting (login / register / resend-verification / forgot-password / compile)
-- [ ] Abuse quotas (per-user project count, per-user asset storage)
+- [x] Rate limiting (login / register / resend-verification / forgot-password / compile)
+- [x] Abuse quotas (per-user project count, per-user asset storage)
 
 ## P1 — Production hardening
 - [ ] Compile memory limits (cgroup / ulimit around the typst subprocess)
