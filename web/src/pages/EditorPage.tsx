@@ -161,6 +161,15 @@ export default function EditorPage({ projectId }: { projectId: string }) {
     setSuggestModeOn(next);
   }
 
+  // Spell check preference persists across sessions (browser-native checker).
+  const [spellcheck, setSpellcheck] = useState(() => localStorage.getItem("tp-spellcheck") !== "off");
+  function toggleSpellcheck() {
+    setSpellcheck((on) => {
+      localStorage.setItem("tp-spellcheck", on ? "off" : "on");
+      return !on;
+    });
+  }
+
   // ---- compile pipeline ----
   const typstRef = useRef<TypstClient | null>(null);
   const contentsRef = useRef(new Map<string, string>()); // path → text
@@ -426,6 +435,15 @@ export default function EditorPage({ projectId }: { projectId: string }) {
             </ToolbarButton>
           )}
           {canSuggest && <ToolbarButton onClick={addComment}>Comment</ToolbarButton>}
+          {activeFile?.kind === "text" && (
+            <ToolbarButton
+              onClick={toggleSpellcheck}
+              active={spellcheck}
+              title="Spell check (uses your browser's dictionary; may flag Typst markup)"
+            >
+              Spell
+            </ToolbarButton>
+          )}
           <ToolbarButton
             onClick={() => setSidePanel(sidePanel === "suggestions" ? null : "suggestions")}
             active={sidePanel === "suggestions"}
@@ -479,6 +497,7 @@ export default function EditorPage({ projectId }: { projectId: string }) {
               }}
               onViewReady={(v) => (viewRef.current = v)}
               onCursorFraction={handleCursorFraction}
+              spellcheck={spellcheck}
               extraExtensions={[session.suggest.extension]}
             />
           ) : (

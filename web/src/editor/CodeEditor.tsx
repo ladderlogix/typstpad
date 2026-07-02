@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -31,7 +31,19 @@ interface Props {
   onViewReady?: (view: EditorView) => void;
   /** Reports cursor position as a fraction of the document (for scroll sync). */
   onCursorFraction?: (fraction: number) => void;
+  /** Enable the browser's native spell checker on the editor content. */
+  spellcheck?: boolean;
   extraExtensions?: import("@codemirror/state").Extension[];
+}
+
+// contentAttributes drive the underlying contenteditable's spellcheck; toggled
+// live via a compartment so flipping it doesn't rebuild the editor.
+function spellcheckAttrs(on: boolean) {
+  return EditorView.contentAttributes.of({
+    spellcheck: on ? "true" : "false",
+    autocorrect: "off",
+    autocapitalize: "off",
+  });
 }
 
 export default function CodeEditor({
@@ -43,10 +55,12 @@ export default function CodeEditor({
   callbacks,
   onViewReady,
   onCursorFraction,
+  spellcheck = false,
   extraExtensions = [],
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const spellcheckCompartment = useRef(new Compartment());
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -85,6 +99,7 @@ export default function CodeEditor({
             onCursorFraction(update.state.doc.lines > 1 ? (line - 1) / (update.state.doc.lines - 1) : 0);
           }
         }),
+        spellcheckCompartment.current.of(spellcheckAttrs(spellcheck)),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
         ...extraExtensions,
@@ -103,6 +118,12 @@ export default function CodeEditor({
   useEffect(() => {
     viewRef.current?.dispatch({ effects: setAnnotations.of(annotations) });
   }, [annotations]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: spellcheckCompartment.current.reconfigure(spellcheckAttrs(spellcheck)),
+    });
+  }, [spellcheck]);
 
   return <div ref={containerRef} className="h-full overflow-hidden" />;
 }

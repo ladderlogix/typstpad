@@ -27,6 +27,8 @@ A self-hosted collaborative [Typst](https://typst.app) document editor — "Over
   like Claude can read, edit (through the CRDT — safe with live editors), suggest, comment
   and compile
 - **PDF export** — in-browser or server-side via the native typst compiler
+- **Spell check** — optional per-user toggle using the browser's built-in dictionary
+  (red squiggles + right-click corrections; no dictionary to bundle)
 - Project search, duplication, image/asset upload via drag & drop, admin panel
 
 ## Quick start
