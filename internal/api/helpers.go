@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"typstpad/internal/store"
 )
@@ -22,6 +23,11 @@ func writeErr(w http.ResponseWriter, status int, msg string) {
 // fail maps common errors to HTTP responses.
 func fail(w http.ResponseWriter, err error) {
 	if errors.Is(err, store.ErrNotFound) {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	// Malformed UUIDs in URLs/bodies surface as Postgres 22P02 — treat as 404.
+	if strings.Contains(err.Error(), "SQLSTATE 22P02") {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}

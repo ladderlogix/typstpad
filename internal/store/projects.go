@@ -25,6 +25,9 @@ type Project struct {
 
 const projectCols = `p.id, p.name, p.description, p.owner_id, p.main_path, p.is_template, p.template_meta, p.created_at, p.updated_at`
 
+// projectColsBare is projectCols without the table alias, for INSERT ... RETURNING.
+const projectColsBare = `id, name, description, owner_id, main_path, is_template, template_meta, created_at, updated_at`
+
 func scanProject(row pgx.Row, withRole bool) (*Project, error) {
 	var p Project
 	dest := []any{&p.ID, &p.Name, &p.Description, &p.OwnerID, &p.MainPath, &p.IsTemplate, &p.TemplateMeta, &p.CreatedAt, &p.UpdatedAt}
@@ -47,7 +50,7 @@ func (s *Store) CreateProject(ctx context.Context, name, description, ownerID st
 		var err error
 		p, err = scanProject(tx.QueryRow(ctx, `
 			INSERT INTO projects (name, description, owner_id) VALUES ($1,$2,$3)
-			RETURNING `+projectCols, name, description, ownerID), false)
+			RETURNING `+projectColsBare, name, description, ownerID), false)
 		if err != nil {
 			return err
 		}

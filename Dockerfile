@@ -29,7 +29,7 @@ RUN curl -fsSL "https://github.com/typst/typst/releases/download/v${TYPST_VERSIO
     && mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst \
     && rm -rf /tmp/typst-x86_64-unknown-linux-musl \
     && typst --version
-RUN useradd -m -u 10001 typstpad
+RUN useradd -m -u 10001 typstpad && mkdir -p /data && chown typstpad:typstpad /data
 COPY --from=build /typstpad /usr/local/bin/typstpad
 USER typstpad
 ENV DATA_DIR=/data

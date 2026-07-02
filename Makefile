@@ -17,5 +17,5 @@ up:
 
 deploy:
 	rsync -az --delete --exclude node_modules --exclude .git --exclude web/dist --exclude collab/dist \
-		./ hwsec-strategist:~/typstpad/
+		--exclude /typstpad --exclude data --exclude .env ./ hwsec-strategist:~/typstpad/
 	ssh hwsec-strategist 'cd ~/typstpad && docker compose up -d --build'
