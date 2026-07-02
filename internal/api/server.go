@@ -16,6 +16,7 @@ import (
 	"typstpad/internal/config"
 	"typstpad/internal/mail"
 	mcpsrv "typstpad/internal/mcp"
+	"typstpad/internal/ratelimit"
 	"typstpad/internal/settings"
 	"typstpad/internal/store"
 	"typstpad/internal/versions"
@@ -65,19 +66,25 @@ func (s *Server) Router() http.Handler {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/register", s.handleRegister)
-			r.Post("/login", s.handleLogin)
+			// Per-IP rate limits: modest on credential checks, strict on the
+			// endpoints that send email (to prevent mail-bombing / enumeration).
+			ipKey := ratelimit.ClientIP
+			authLimit := ratelimit.New(20, time.Minute).Middleware(ipKey)
+			emailLimit := ratelimit.New(6, time.Minute).Middleware(ipKey)
+
+			r.With(authLimit).Post("/register", s.handleRegister)
+			r.With(authLimit).Post("/login", s.handleLogin)
 			r.Post("/logout", s.handleLogout)
 			r.Get("/me", s.handleMe)
 			r.Get("/config", s.handleAuthConfig)
 			r.Get("/oidc/login", s.handleOIDCLogin)
 			r.Get("/oidc/callback", s.handleOIDCCallback)
 			r.Get("/verify-email", s.handleVerifyEmail)
-			r.Post("/resend-verification", s.handleResendVerification)
-			r.Post("/forgot-password", s.handleForgotPassword)
-			r.Post("/reset-password", s.handleResetPassword)
+			r.With(emailLimit).Post("/resend-verification", s.handleResendVerification)
+			r.With(emailLimit).Post("/forgot-password", s.handleForgotPassword)
+			r.With(authLimit).Post("/reset-password", s.handleResetPassword)
 			r.With(auth.RequireUser).Patch("/me", s.handleUpdateProfile)
-			r.With(auth.RequireUser).Post("/change-password", s.handleChangePassword)
+			r.With(auth.RequireUser, authLimit).Post("/change-password", s.handleChangePassword)
 		})
 		s.mountAuthedRoutes(r)
 

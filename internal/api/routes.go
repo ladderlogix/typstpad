@@ -1,13 +1,29 @@
 package api
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 
 	"typstpad/internal/auth"
+	"typstpad/internal/ratelimit"
 )
+
+// userKey rate-limits by the authenticated user id (falling back to IP).
+func userKey(r *http.Request) string {
+	if u := auth.UserFrom(r.Context()); u != nil {
+		return u.ID
+	}
+	return ratelimit.ClientIP(r)
+}
 
 // mountAuthedRoutes wires every route that requires an authenticated user.
 func (s *Server) mountAuthedRoutes(r chi.Router) {
+	// Server-side compile is expensive; cap per user (in addition to the global
+	// NumCPU semaphore in the compiler).
+	compileLimit := ratelimit.New(40, time.Minute).Middleware(userKey)
+
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequireUser)
 
@@ -48,8 +64,8 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.With(auth.RequireScope("write")).Delete("/teams/{teamID}", s.handleUnshareProjectTeam)
 
 			// Compile / export
-			r.With(auth.RequireScope("compile")).Post("/compile", s.handleCompile)
-			r.Get("/export/pdf", s.handleExportPDF)
+			r.With(auth.RequireScope("compile"), compileLimit).Post("/compile", s.handleCompile)
+			r.With(compileLimit).Get("/export/pdf", s.handleExportPDF)
 
 			// Templates
 			r.With(auth.RequireScope("write")).Post("/publish-template", s.handlePublishTemplate)

@@ -171,6 +171,25 @@ func (s *Store) TouchProject(ctx context.Context, id string) error {
 	return err
 }
 
+// CountProjectsOwnedBy counts a user's live, non-template projects (for quotas).
+func (s *Store) CountProjectsOwnedBy(ctx context.Context, ownerID string) (int, error) {
+	var n int
+	err := s.Pool.QueryRow(ctx, `
+		SELECT count(*) FROM projects
+		WHERE owner_id=$1 AND deleted_at IS NULL AND is_template=false`, ownerID).Scan(&n)
+	return n, err
+}
+
+// AssetBytesOwnedBy sums asset sizes across a user's projects (for storage quota).
+func (s *Store) AssetBytesOwnedBy(ctx context.Context, ownerID string) (int64, error) {
+	var n int64
+	err := s.Pool.QueryRow(ctx, `
+		SELECT COALESCE(sum(f.size),0) FROM files f
+		JOIN projects p ON p.id = f.project_id AND p.owner_id = $1 AND p.deleted_at IS NULL
+		WHERE f.kind='asset'`, ownerID).Scan(&n)
+	return n, err
+}
+
 func (s *Store) SoftDeleteProject(ctx context.Context, id string) error {
 	_, err := s.Pool.Exec(ctx, `UPDATE projects SET deleted_at = now() WHERE id = $1`, id)
 	return err

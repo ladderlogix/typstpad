@@ -105,6 +105,9 @@ func (s *Server) handleUploadAsset(w http.ResponseWriter, r *http.Request, p *st
 		writeErr(w, http.StatusRequestEntityTooLarge, "asset too large (max 50MB)")
 		return
 	}
+	if !s.checkAssetQuota(w, r, p.OwnerID, int64(len(data))) {
+		return
+	}
 	hash, err := s.Blob.Put(data)
 	if err != nil {
 		fail(w, err)

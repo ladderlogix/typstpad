@@ -45,6 +45,9 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" {
 		req.Name = "Untitled project"
 	}
+	if !s.checkProjectQuota(w, r) {
+		return
+	}
 	var p *store.Project
 	var err error
 	if req.TemplateID != "" {
@@ -158,6 +161,9 @@ func (s *Server) handleDuplicateProject(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
+	if !s.checkProjectQuota(w, r) {
+		return
+	}
 	var req struct {
 		Name string `json:"name"`
 	}
@@ -215,6 +221,9 @@ func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUseTemplate(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFrom(r.Context())
+	if !s.checkProjectQuota(w, r) {
+		return
+	}
 	var req struct {
 		Name string `json:"name"`
 	}

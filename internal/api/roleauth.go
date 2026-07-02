@@ -16,6 +16,44 @@ func roleAtLeast(role, min string) bool {
 
 var errForbidden = errors.New("forbidden")
 
+// checkProjectQuota returns false (and writes 403) if the user is at their
+// project limit. Admins are exempt.
+func (s *Server) checkProjectQuota(w http.ResponseWriter, r *http.Request) bool {
+	u := auth.UserFrom(r.Context())
+	if u.IsAdmin || s.Cfg.MaxProjectsPerUser <= 0 {
+		return true
+	}
+	n, err := s.Store.CountProjectsOwnedBy(r.Context(), u.ID)
+	if err != nil {
+		fail(w, err)
+		return false
+	}
+	if n >= s.Cfg.MaxProjectsPerUser {
+		writeErr(w, http.StatusForbidden, "project limit reached; delete some projects or ask an admin to raise the limit")
+		return false
+	}
+	return true
+}
+
+// checkAssetQuota returns false (and writes 413) if adding addBytes would
+// exceed the owner's storage quota. Admins are exempt.
+func (s *Server) checkAssetQuota(w http.ResponseWriter, r *http.Request, ownerID string, addBytes int64) bool {
+	u := auth.UserFrom(r.Context())
+	if u.IsAdmin || s.Cfg.MaxAssetBytesPerUser <= 0 {
+		return true
+	}
+	used, err := s.Store.AssetBytesOwnedBy(r.Context(), ownerID)
+	if err != nil {
+		fail(w, err)
+		return false
+	}
+	if used+addBytes > s.Cfg.MaxAssetBytesPerUser {
+		writeErr(w, http.StatusRequestEntityTooLarge, "storage quota exceeded for this account")
+		return false
+	}
+	return true
+}
+
 // projectAccess loads the project and verifies the current user has at least
 // minRole. Writes the HTTP error response itself when returning an error.
 func (s *Server) projectAccess(w http.ResponseWriter, r *http.Request, projectID, minRole string) (*store.Project, bool) {

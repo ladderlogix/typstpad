@@ -23,6 +23,10 @@ type Config struct {
 	OIDCScopes      string
 	CompileTimeout  int // seconds
 
+	// Abuse quotas (0 = unlimited). Admins are always exempt.
+	MaxProjectsPerUser  int
+	MaxAssetBytesPerUser int64
+
 	// SignupAllowlist restricts which emails may register (comma/space
 	// separated; each entry is a domain like "ics.red" or an exact address
 	// like "me@ics.red"). Empty allows any email.
@@ -56,6 +60,8 @@ func FromEnv() (*Config, error) {
 		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 		OIDCScopes:      getenv("OIDC_SCOPES", "openid profile email"),
 		CompileTimeout:  intenv("COMPILE_TIMEOUT_SECONDS", 30),
+		MaxProjectsPerUser:   intenv("MAX_PROJECTS_PER_USER", 500),
+		MaxAssetBytesPerUser: int64(intenv("MAX_ASSET_MB_PER_USER", 1024)) << 20,
 		SignupAllowlist: os.Getenv("SIGNUP_ALLOWLIST"),
 		SMTPHost:        os.Getenv("SMTP_HOST"),
 		SMTPPort:        intenv("SMTP_PORT", 587),
