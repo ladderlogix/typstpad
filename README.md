@@ -69,6 +69,22 @@ Set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` in `.env` and register
 `${PUBLIC_URL}/api/auth/oidc/callback` as the redirect URI with your identity provider.
 Accounts are linked by verified email when one already exists.
 
+## Restricting sign-ups & email verification
+
+- **Allowlist:** set `SIGNUP_ALLOWLIST` to a comma/space separated list of domains
+  (`ics.red`) and/or exact addresses (`me@ics.red`). Empty = anyone may register.
+- **Email verification (SES or any SMTP):** set `SMTP_HOST`/`SMTP_PORT`/`SMTP_USERNAME`/
+  `SMTP_PASSWORD`/`SMTP_FROM`. When SMTP is configured, new local accounts must click a
+  verification link before they can sign in (OIDC accounts are trusted as pre-verified;
+  existing accounts are grandfathered). Set `REQUIRE_EMAIL_VERIFICATION=false` to keep
+  SMTP for other uses without gating sign-in. For Amazon SES, use the SES SMTP endpoint
+  (e.g. `email-smtp.us-east-1.amazonaws.com:587`) with your SES SMTP credentials.
+
+## Theme
+
+Light and dark mode with a toggle in the header (persisted per browser, defaults to your
+system preference).
+
 ## Architecture
 
 ```
