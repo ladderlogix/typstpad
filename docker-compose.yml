@@ -28,6 +28,8 @@ services:
       MAX_ASSET_MB_PER_USER: ${MAX_ASSET_MB_PER_USER:-1024}
       COMPILE_MAX_MEMORY_MB: ${COMPILE_MAX_MEMORY_MB:-2048}
       METRICS_TOKEN: ${METRICS_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      APP_ENV: ${APP_ENV:-production}
     volumes:
       - appdata:/data
     depends_on:
@@ -70,6 +72,7 @@ services:
       - --storage.tsdb.retention.time=30d
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - /opt/typstpad/metrics-token:/etc/prometheus/token:ro
       - promdata:/prometheus
     depends_on: [app]

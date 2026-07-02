@@ -1,0 +1,36 @@
+groups:
+  - name: typstpad
+    rules:
+      # Uptime: Prometheus can't scrape the app's /metrics.
+      - alert: TypstpadDown
+        expr: up{job="typstpad"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TypstPad is down"
+          description: "Prometheus has been unable to scrape app:8080 /metrics for 2 minutes."
+
+      # Errors: elevated 5xx response rate.
+      - alert: TypstpadHighErrorRate
+        expr: >
+          sum(rate(typstpad_http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(typstpad_http_requests_total[5m])), 0.001) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated 5xx error rate"
+          description: "More than 5% of HTTP responses have been 5xx over the last 5 minutes."
+
+      # Compiles: most server-side Typst compiles are failing.
+      - alert: TypstpadCompileFailures
+        expr: >
+          sum(rate(typstpad_compile_total{result="error"}[10m]))
+            / clamp_min(sum(rate(typstpad_compile_total[10m])), 0.001) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Typst compile failure rate"
+          description: "Over half of server-side compilations have failed for 15 minutes."

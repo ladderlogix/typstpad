@@ -24,7 +24,11 @@ deployed through the pipeline, and verified.
 - [x] Observability (metrics) — Prometheus + Grafana stack; app instrumented (HTTP
       traffic/latency/errors, compile rate/duration, business gauges, Go runtime); provisioned
       TypstPad dashboard. Grafana on localhost:3001 (SSH tunnel or a CF hostname).
-      TODO: error tracking (Sentry) + uptime alerting are still open.
+- [x] Error tracking + uptime alerting — Prometheus alert rules (TypstpadDown / high 5xx
+      rate / high compile-failure rate) load and evaluate; optional Sentry error tracking
+      is env-gated (SENTRY_DSN, no-op when unset) via a panic-reporting middleware.
+      Connecting alerts to a channel (email/Slack) is a Grafana contact-point / Alertmanager
+      config step.
 - [x] Admin server stats — users / projects / documents / templates / teams / active sessions
       / disk usage in the admin panel
 

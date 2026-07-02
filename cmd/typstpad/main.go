@@ -21,6 +21,7 @@ import (
 	"typstpad/internal/config"
 	"typstpad/internal/mail"
 	"typstpad/internal/metrics"
+	"typstpad/internal/obs"
 	"typstpad/internal/seed"
 	"typstpad/internal/settings"
 	"typstpad/internal/store"
@@ -134,9 +135,12 @@ func serveCmd() *cobra.Command {
 				slog.Error("template seeding failed", "err", err)
 			}
 
+			flushSentry := obs.InitSentry(cfg.SentryDSN, cfg.Environment, "")
+			defer flushSentry()
+
 			httpSrv := &http.Server{
 				Addr:              cfg.Addr,
-				Handler:           srv.Router(),
+				Handler:           obs.Middleware(cfg.SentryDSN, srv.Router()),
 				ReadHeaderTimeout: 10 * time.Second,
 			}
 			go func() {

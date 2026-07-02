@@ -46,6 +46,11 @@ type Config struct {
 	SMTPFromName string
 	// RequireEmailVerification overrides the default (verify when SMTP set).
 	requireEmailVerification string
+
+	// SentryDSN enables error tracking when set (empty = disabled).
+	SentryDSN string
+	// Environment tags errors/traces (e.g. "production", "dev").
+	Environment string
 }
 
 func FromEnv() (*Config, error) {
@@ -76,6 +81,8 @@ func FromEnv() (*Config, error) {
 		SMTPFrom:        os.Getenv("SMTP_FROM"),
 		SMTPFromName:    getenv("SMTP_FROM_NAME", "TypstPad"),
 		requireEmailVerification: os.Getenv("REQUIRE_EMAIL_VERIFICATION"),
+		SentryDSN:                os.Getenv("SENTRY_DSN"),
+		Environment:              getenv("APP_ENV", "production"),
 	}
 	if c.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
