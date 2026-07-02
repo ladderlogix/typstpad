@@ -117,6 +117,11 @@ func (s *Server) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			fail(w, err)
 			return
 		}
+		role := "admin"
+		if !*req.IsAdmin {
+			role = "member"
+		}
+		s.audit(r, "user.role", targetID, "set to "+role)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -128,10 +133,16 @@ func (s *Server) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "cannot delete your own account")
 		return
 	}
+	target, _ := s.Store.UserByID(r.Context(), targetID)
 	if err := s.Store.DeleteUser(r.Context(), targetID); err != nil {
 		fail(w, err)
 		return
 	}
+	tgt := targetID
+	if target != nil {
+		tgt = target.Email
+	}
+	s.audit(r, "user.delete", tgt, "")
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -246,6 +257,7 @@ func (s *Server) handleAdminPutSettings(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	}
+	s.audit(r, "settings.update", "server settings", "")
 	writeJSON(w, http.StatusOK, s.Settings.AdminView())
 }
 

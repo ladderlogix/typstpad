@@ -83,6 +83,7 @@ func (s *Server) handlePermanentDeleteProject(w http.ResponseWriter, r *http.Req
 		fail(w, err)
 		return
 	}
+	s.audit(r, "project.delete", id, "permanent")
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -220,6 +221,7 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
+	s.audit(r, "project.trash", p.Name, "")
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 

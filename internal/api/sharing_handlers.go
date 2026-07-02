@@ -64,6 +64,7 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Hub.Publish(p.ID, Event{Type: "members.changed"})
 	s.notifyShare(r.Context(), auth.UserFrom(r.Context()), p, target, req.Role)
+	s.audit(r, "project.share", p.Name, "with "+target.Email+" as "+req.Role)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 

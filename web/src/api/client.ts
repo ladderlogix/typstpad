@@ -155,6 +155,15 @@ export interface ShareLink {
   token?: string;
 }
 
+export interface AuditEntry {
+  id: string;
+  actorEmail: string;
+  action: string;
+  target: string;
+  detail: string;
+  createdAt: string;
+}
+
 export interface Notification {
   id: string;
   type: "comment" | "mention" | "share";

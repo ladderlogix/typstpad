@@ -44,7 +44,8 @@ deployed through the pipeline, and verified.
 - [ ] Per-file permissions
 - [x] Project favorites/starring (star on cards + Favorites filter); trash with restore
       (deletes go to a Trash view with restore / delete-forever; owner-only)
-- [ ] Admin audit log
+- [x] Admin audit log — records role changes, user/project deletions, sharing, and
+      settings updates; viewer in the Admin panel (most recent first)
 - [ ] Exact scroll-sync / jump-to-source (SyncTeX-style)
 - [ ] Mobile/responsive editor layout
 - [ ] Accessibility pass (keyboard nav, ARIA, screen readers)

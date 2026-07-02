@@ -154,6 +154,7 @@ func (s *Server) mountAuthedRoutes(r chi.Router) {
 			r.Get("/admin/settings", s.handleAdminGetSettings)
 			r.Put("/admin/settings", s.handleAdminPutSettings)
 			r.Get("/admin/stats", s.handleAdminStats)
+			r.Get("/admin/audit", s.handleAdminAudit)
 		})
 	})
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type AdminSettings, type User } from "../api/client";
+import { api, type AdminSettings, type AuditEntry, type User } from "../api/client";
 import { useMe } from "../App";
 import { ThemeToggle } from "../theme";
 
@@ -21,6 +21,7 @@ export default function AdminPage() {
         <ServerStats />
         <ServerSettings />
         <Users />
+        <AuditLog />
       </main>
     </div>
   );
@@ -263,6 +264,37 @@ function Users() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function AuditLog() {
+  const { data } = useQuery<AuditEntry[]>({
+    queryKey: ["adminAudit"],
+    queryFn: () => api.get("/api/admin/audit"),
+  });
+  return (
+    <section>
+      <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">Audit log</h2>
+      <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        Security-relevant actions (role changes, deletions, sharing, settings). Most recent first.
+      </p>
+      <div className="overflow-hidden rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+        {data && data.length === 0 && <p className="px-4 py-6 text-center text-sm text-gray-400">No activity recorded yet.</p>}
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+          {data?.map((e) => (
+            <li key={e.id} className="flex items-baseline gap-3 px-4 py-2 text-sm">
+              <span className="shrink-0 font-mono text-xs text-indigo-600 dark:text-indigo-400">{e.action}</span>
+              <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
+                {e.target}
+                {e.detail && <span className="text-gray-400"> — {e.detail}</span>}
+              </span>
+              <span className="shrink-0 text-xs text-gray-400">{e.actorEmail}</span>
+              <span className="shrink-0 text-xs text-gray-400">{new Date(e.createdAt).toLocaleString()}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
