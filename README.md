@@ -24,8 +24,11 @@ A self-hosted collaborative [Typst](https://typst.app) document editor — "Over
 - **Teams** — group users into teams and share a project with a whole team at a role; each
   member's effective access is the highest of their direct grant and any team grant. Team
   admins manage membership; teams appear in the project Share dialog
-- **Templates** — built-in report/letter/résumé/slides templates; publish any project as a
-  template
+- **Templates** — a template gallery with server-rendered thumbnails, category filters,
+  preview and one-click use; built-in report/letter/résumé/slides plus publish any project as
+  a template (and remove your own)
+- **Collections** — group your projects into personal collections/folders (a project can be in
+  several); filter the dashboard by collection
 - **AI integration** — REST API, **MCP server** (streamable HTTP + stdio) and CLI so agents
   like Claude can read, edit (through the CRDT — safe with live editors), suggest, comment
   and compile
@@ -61,7 +64,9 @@ typstpad mcp                         # MCP server over stdio
 ```
 
 MCP tools: `list_projects`, `list_files`, `read_file`, `apply_edit`, `propose_suggestion`,
-`add_comment`, `get_compile_diagnostics`, `get_version_history`, `create_version`.
+`add_comment`, `get_compile_diagnostics`, `get_version_history`, `create_version`,
+`create_project`, `create_file`, `list_templates`, `create_project_from_template`,
+`publish_template`.
 
 ## SSO (OIDC)
 
