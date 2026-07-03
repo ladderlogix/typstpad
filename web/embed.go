@@ -1,8 +1,9 @@
-//go:build !noembed
+//go:build withui
 
-// Package web embeds the built React SPA (vite build output in dist/). The
-// `noembed` build tag swaps in a stub (see embed_noembed.go) so the distributed
-// CLI binary stays small — the server image builds without the tag.
+// Package web embeds the built React SPA (vite build output in dist/). This is
+// opt-in via the `withui` build tag, used only by the Docker server image. The
+// default build (see embed_stub.go) ships no SPA, so the CLI stays small and
+// `go install` works without a web build / committed dist/.
 package web
 
 import (

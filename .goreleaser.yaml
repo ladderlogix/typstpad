@@ -1,7 +1,7 @@
 # GoReleaser config for the TypstPad CLI (client + MCP).
 # Cut a release by pushing a tag:  git tag v0.1.0 && git push origin v0.1.0
-# The CLI is built with -tags noembed so it stays small (no bundled web UI —
-# the server ships as a Docker image). See .github/workflows/release.yml.
+# The default build has no bundled web UI so the CLI stays small (the server
+# ships as a Docker image, built with -tags withui). See release.yml.
 version: 2
 
 project_name: typstpad
@@ -9,7 +9,8 @@ project_name: typstpad
 before:
   hooks:
     - go mod tidy
-    - go test -tags noembed ./...
+    # Default build has no bundled SPA, so no web build / dist is needed here.
+    - go test ./...
 
 builds:
   - id: typstpad
@@ -18,7 +19,6 @@ builds:
     env:
       - CGO_ENABLED=0
     flags:
-      - -tags=noembed
       - -trimpath
     ldflags:
       - -s -w -X main.version={{ .Version }}

@@ -16,9 +16,10 @@ COPY internal/ internal/
 COPY web/embed.go web/
 COPY --from=web /src/web/dist web/dist
 # CI gate: unit tests must pass before we produce a binary. A red test fails the
-# image build, so the deploy hook never ships it (and rolls back).
-RUN go vet ./... && go test ./...
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /typstpad ./cmd/typstpad
+# image build, so the deploy hook never ships it (and rolls back). The server
+# embeds the SPA via -tags withui.
+RUN go vet -tags withui ./... && go test -tags withui ./...
+RUN CGO_ENABLED=0 go build -tags withui -ldflags="-s -w" -o /typstpad ./cmd/typstpad
 
 # ---- runtime ----
 FROM debian:bookworm-slim
