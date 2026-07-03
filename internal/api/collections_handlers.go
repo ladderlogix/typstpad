@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 func (s *Server) handleListCollections(w http.ResponseWriter, r *http.Request) {

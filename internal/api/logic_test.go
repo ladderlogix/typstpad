@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 func TestRoleAtLeast(t *testing.T) {

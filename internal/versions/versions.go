@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"typstpad/internal/blob"
-	"typstpad/internal/collab"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/blob"
+	"github.com/ladderlogix/typstpad/internal/collab"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 const (

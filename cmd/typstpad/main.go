@@ -13,26 +13,30 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"typstpad/internal/api"
-	"typstpad/internal/auth"
-	"typstpad/internal/blob"
-	"typstpad/internal/collab"
-	"typstpad/internal/compile"
-	"typstpad/internal/config"
-	"typstpad/internal/mail"
-	"typstpad/internal/metrics"
-	"typstpad/internal/obs"
-	"typstpad/internal/seed"
-	"typstpad/internal/settings"
-	"typstpad/internal/store"
-	"typstpad/internal/versions"
-	"typstpad/web"
+	"github.com/ladderlogix/typstpad/internal/api"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/blob"
+	"github.com/ladderlogix/typstpad/internal/collab"
+	"github.com/ladderlogix/typstpad/internal/compile"
+	"github.com/ladderlogix/typstpad/internal/config"
+	"github.com/ladderlogix/typstpad/internal/mail"
+	"github.com/ladderlogix/typstpad/internal/metrics"
+	"github.com/ladderlogix/typstpad/internal/obs"
+	"github.com/ladderlogix/typstpad/internal/seed"
+	"github.com/ladderlogix/typstpad/internal/settings"
+	"github.com/ladderlogix/typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/versions"
+	"github.com/ladderlogix/typstpad/web"
 )
+
+// version is overridden at release time via -ldflags "-X main.version=...".
+var version = "dev"
 
 func main() {
 	root := &cobra.Command{
 		Use:           "typstpad",
 		Short:         "TypstPad — self-hosted collaborative Typst editor",
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: false,
 	}
@@ -135,7 +139,7 @@ func serveCmd() *cobra.Command {
 				slog.Error("template seeding failed", "err", err)
 			}
 
-			flushSentry := obs.InitSentry(cfg.SentryDSN, cfg.Environment, "")
+			flushSentry := obs.InitSentry(cfg.SentryDSN, cfg.Environment, version)
 			defer flushSentry()
 
 			httpSrv := &http.Server{

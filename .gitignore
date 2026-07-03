@@ -7,3 +7,7 @@ collab/dist/
 .env
 *.pdf
 .DS_Store
+
+# GoReleaser build output
+/dist/
+/typstpad

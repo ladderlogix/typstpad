@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 // mentionRe matches @handle tokens: a bare word or a full email.

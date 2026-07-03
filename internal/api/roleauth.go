@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 var roleRank = map[string]int{"viewer": 1, "suggester": 2, "editor": 3, "owner": 4}

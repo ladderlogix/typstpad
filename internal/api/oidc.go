@@ -12,7 +12,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 type oidcState struct {

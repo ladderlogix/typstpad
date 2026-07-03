@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 var userColors = []string{

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

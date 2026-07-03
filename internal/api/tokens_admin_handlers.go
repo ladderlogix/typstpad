@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/settings"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/settings"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 // Personal access tokens (for the CLI, API scripts and MCP clients).

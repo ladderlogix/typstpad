@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"typstpad/internal/compile"
-	"typstpad/internal/metrics"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/compile"
+	"github.com/ladderlogix/typstpad/internal/metrics"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 // materialize gathers all project files (live text + asset bytes) for a

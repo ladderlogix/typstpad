@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 type ctxKey int

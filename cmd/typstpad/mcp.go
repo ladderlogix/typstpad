@@ -9,7 +9,7 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
-	"typstpad/internal/mcp"
+	"github.com/ladderlogix/typstpad/internal/mcp"
 )
 
 func mcpCmd() *cobra.Command {

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"typstpad/internal/config"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/config"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 // Managed setting keys.

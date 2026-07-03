@@ -1,4 +1,4 @@
-module typstpad
+module github.com/ladderlogix/typstpad
 
 go 1.26.4
 

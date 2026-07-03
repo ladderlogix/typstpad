@@ -10,7 +10,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 //go:embed templates

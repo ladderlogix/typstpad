@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 // teamAccess loads a team and verifies the caller is a member with at least

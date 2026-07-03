@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/auth"
 )
 
 // handleExportZip streams the whole project (live text + assets) as a .zip.

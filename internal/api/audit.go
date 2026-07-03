@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 // audit records a security-relevant action, attributed to the current user.

@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/ratelimit"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/ratelimit"
 )
 
 // userKey rate-limits by the authenticated user id (falling back to IP).

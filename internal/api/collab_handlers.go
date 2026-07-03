@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"typstpad/internal/auth"
-	"typstpad/internal/collab"
-	"typstpad/internal/store"
+	"github.com/ladderlogix/typstpad/internal/auth"
+	"github.com/ladderlogix/typstpad/internal/collab"
+	"github.com/ladderlogix/typstpad/internal/store"
 )
 
 // handleCollabToken issues a short-lived websocket JWT for one file's Y.Doc.
