@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -30,13 +31,25 @@ import (
 )
 
 // version is overridden at release time via -ldflags "-X main.version=...".
+// For `go install pkg@vX`, ldflags aren't set, so fall back to the module
+// version stamped in the build info.
 var version = "dev"
+
+func resolvedVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		return bi.Main.Version
+	}
+	return version
+}
 
 func main() {
 	root := &cobra.Command{
 		Use:           "typstpad",
 		Short:         "TypstPad — self-hosted collaborative Typst editor",
-		Version:       version,
+		Version:       resolvedVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: false,
 	}
@@ -139,7 +152,7 @@ func serveCmd() *cobra.Command {
 				slog.Error("template seeding failed", "err", err)
 			}
 
-			flushSentry := obs.InitSentry(cfg.SentryDSN, cfg.Environment, version)
+			flushSentry := obs.InitSentry(cfg.SentryDSN, cfg.Environment, resolvedVersion())
 			defer flushSentry()
 
 			httpSrv := &http.Server{
